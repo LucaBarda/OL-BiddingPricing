@@ -1,4 +1,4 @@
-import Agent
+from agents.Agent import Agent
 from . import *
 
 class UCB1BiddingAgent(Agent):
