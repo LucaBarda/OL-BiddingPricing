@@ -1,6 +1,10 @@
 import agents as ag
 import auctions as au
+import environments as envi
+
 import numpy as np
+import matplotlib.pyplot as plt
+import scipy.optimize as opt
 
 if __name__ == '__main__':
     # Initialize the agents
@@ -15,3 +19,5 @@ if __name__ == '__main__':
     print(arm, 'Done')
 
     auction1 = au.SecondPriceAuction([.5, .6])
+
+    env1 = envi.StochasticBiddingCompetitors(1,1)
