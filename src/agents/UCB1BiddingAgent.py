@@ -1,7 +1,7 @@
 import Agent
 from . import *
 
-class UCB1Agent(Agent):
+class UCB1BiddingAgent(Agent):
     def __init__(self, budget, bids, T, range=1):
         self.budget = budget
         self.K = len(bids)
