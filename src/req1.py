@@ -4,7 +4,6 @@ import environments as envi
 
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy.optimize as opt
 
 if __name__ == '__main__':
     # Initialize the agents
