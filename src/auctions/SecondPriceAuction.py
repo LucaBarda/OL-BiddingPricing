@@ -1,5 +1,6 @@
-import Auction
-from . import *
+import numpy as np
+
+from .AbstractAuction import Auction
 
 # second price auctions are truthful (bid == value) 
 class SecondPriceAuction(Auction):

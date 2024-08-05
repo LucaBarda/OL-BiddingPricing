@@ -1,4 +1,4 @@
-# modules exported through the package
+# modules the package exports
 from .MultiplicativePacingAgent import *
 from .UCB1BiddingAgent import *
 from .GPUCBAgent import *

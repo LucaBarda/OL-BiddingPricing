@@ -1,4 +1,5 @@
 import agents as ag
+import auctions as au
 import numpy as np
 
 if __name__ == '__main__':
@@ -12,3 +13,5 @@ if __name__ == '__main__':
     agent1.update(1, 1)
     agent2.update(1, 1)
     print(arm, 'Done')
+
+    auction1 = au.SecondPriceAuction([.5, .6])
