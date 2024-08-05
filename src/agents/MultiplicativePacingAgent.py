@@ -1,4 +1,5 @@
 from . import *
+
 class MultiplicativePacingAgent:
     def __init__(self, valuation, budget, T, eta):
         self.valuation = valuation

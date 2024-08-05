@@ -1,5 +1,4 @@
-from . import *
-
+# this is the blueprint of an Agent-type class (abstract class), we can customize this with our strategy
 class Agent:
     def __init__(self):
         pass
