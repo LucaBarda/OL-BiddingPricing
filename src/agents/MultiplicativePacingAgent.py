@@ -1,6 +1,8 @@
 import numpy as np
 
-class MultiplicativePacingAgent:
+from .AbstractBiddingAgent import BiddingAgent
+
+class MultiplicativePacingAgent(BiddingAgent):
     def __init__(self, valuation, budget, T, eta):
         self.valuation = valuation
         self.budget = budget

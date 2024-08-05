@@ -1,9 +1,9 @@
 import numpy as np
 import scipy.optimize as opt
 
-from .AbstractAgent import Agent
+from .AbstractBiddingAgent import BiddingAgent
 
-class UCB1BiddingAgent(Agent):
+class UCB1BiddingAgent(BiddingAgent):
     def __init__(self, budget, bids, T, range=1):
         self.budget = budget
         self.K = len(bids)
