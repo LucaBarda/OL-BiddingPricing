@@ -1,4 +1,5 @@
 import Auction
+from . import *
 
 # second price auctions are truthful (bid == value) 
 class SecondPriceAuction(Auction):
