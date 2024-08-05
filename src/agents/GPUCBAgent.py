@@ -1,5 +1,6 @@
-from agents.Agent import Agent
-from . import *
+import numpy as np
+
+from .AbstractAgent import Agent
 
 class GPUCBAgent(Agent):
     def __init__(self, T, discretization=100):

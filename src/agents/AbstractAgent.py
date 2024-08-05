@@ -1,4 +1,4 @@
-# this is the blueprint of an Agent-type class (abstract class), we can customize this with our strategy
+# this is the blueprint of an Agent-type class (abstract class)
 class Agent:
     def __init__(self):
         pass

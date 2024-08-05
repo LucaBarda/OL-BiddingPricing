@@ -1,5 +1,7 @@
-from agents.Agent import Agent
-from . import *
+import numpy as np
+import scipy.optimize as opt
+
+from .AbstractAgent import Agent
 
 class UCB1BiddingAgent(Agent):
     def __init__(self, budget, bids, T, range=1):
@@ -21,7 +23,7 @@ class UCB1BiddingAgent(Agent):
             f_ucb = self.f_avg + self.range*np.sqrt(2*np.log(self.T)/self.N_pulls)
             c_lcb = self.c_avg - self.range*np.sqrt(2*np.log(self.T)/self.N_pulls)
             
-            res = opt.linprog(c=-f_ucb, A_ub=[c_lcb], b_ub=[self.rho], A_eq=[np.ones(self.K)], b_eq=[1], bounds=(0,1), method="simplex")
+            res = opt.linprog(c=-f_ucb, A_ub=[c_lcb], b_ub=[self.rho], A_eq=[np.ones(self.K)], b_eq=[1], bounds=(0,1), method="highs")
             gamma = res.x
             self.b_t = np.random.choice(range(self.K), p=gamma)
         return self.b_t

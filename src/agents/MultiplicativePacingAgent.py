@@ -1,4 +1,4 @@
-from . import *
+import numpy as np
 
 class MultiplicativePacingAgent:
     def __init__(self, valuation, budget, T, eta):

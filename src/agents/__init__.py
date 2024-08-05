@@ -1,5 +1,4 @@
-import numpy as np
-import scipy.optimize as opt
-
-#common imports
-__all__ = ['np', 'opt']
+# modules exported through the package
+from .MultiplicativePacingAgent import *
+from .UCB1BiddingAgent import *
+from .GPUCBAgent import *
