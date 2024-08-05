@@ -1,5 +1,5 @@
 from agents.AbstractAgent import Agent
-
+from . import *
 class UCB1Agent(Agent):
     def __init__(self, budget, bids, T, range=1):
         self.budget = budget
