@@ -5,6 +5,7 @@ from .AbstractAgent import Agent
 class GPUCBAgent(Agent):
     def __init__(self, T, discretization=100):
         self.T = T
+        # GPUCB agent assumes prices are in [0,1] (which is why we need rescaling outside the class)
         self.arms = np.linspace(0, 1, discretization)
         self.gp = RBFGaussianProcess(scale=2).fit()
         self.a_t = None
@@ -20,7 +21,7 @@ class GPUCBAgent(Agent):
     
     def pull_arm(self):
         self.mu_t, self.sigma_t = self.gp.predict(self.arms) 
-        ucbs = self.mu_t + self.beta(self.t) * self.sigma_t  # beta inflates the confidence (?) encourages exploration (it is increasing in time)
+        ucbs = self.mu_t + self.beta(self.t) * self.sigma_t  # beta encourages exploration
         self.a_t = np.argmax(ucbs)
         return self.arms[self.a_t]
     

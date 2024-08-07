@@ -14,3 +14,9 @@ def generate_adv_conv_prob_sequence(len_seq):
         return_array[i] = conversion_prob
     
     return return_array
+
+def normalize_zero_one(x, min_x, max_x):
+    return (x - min_x) / (max_x - min_x)
+
+def denormalize_zero_one(x, min_x, max_x):
+    return min_x + (max_x - min_x) * x
