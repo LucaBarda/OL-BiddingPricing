@@ -4,6 +4,7 @@ import random
 
 import agents as ag
 import environments as envi
+import auctions as au
 from utils import *
 
 class Requirement1:
@@ -23,9 +24,9 @@ class Requirement1:
         self.competitors_per_day = [100 for _ in range(self.num_days)]
 
         if self.ctrs is None:
-            self.ctrs = np.random.uniform(0.4, 0.9, self.num_competitors)
+            self.ctrs = np.random.uniform(0.4, 0.9, self.num_competitors+1)
         else:
-            assert len(self.ctrs) == self.num_competitors, "Number of CTRs must match number of competitors"
+            assert len(self.ctrs) == self.num_competitors+1, "Number of CTRs must match number of bidders"
 
         self.T_bidding = np.sum(self.auctions_per_day)
 
@@ -33,14 +34,47 @@ class Requirement1:
         pass
 
     def bidding(self):
-        num_bidders = 10
-        num_competitors = 10 - 1
+
+        num_competitors = self.num_competitors
+        budget = 100
+
+        # in this case we are just considering bidding so no need to separate for the different days.
+        n_auctions = sum(self.auctions_per_day)
+
+        # learning rate from theory
+        eta = 1/np.sqrt(n_auctions)
         
-        #In this case we are just considering bidding so no need to separete for the different days.
-        #we sum for all days
-        total_auctions = sum(self.auctions_per_day)
-        #competitors randomly pick 1 from self.competitors_per_day
-        competitors = random.choice(self.competitors_per_day)
+        my_ctr = self.ctrs[0]
+        other_ctrs = self.ctrs[1:]
+        my_valuation = 0.8
+
+        other_bids = lambda n: np.random.uniform(0.5, 1, n)
+
+        agent = ag.MultiplicativePacingAgent(my_valuation, budget, n_auctions, eta)
+        envir = envi.StochasticBiddingCompetitors(other_bids, num_competitors)
+        auction = au.SecondPriceAuction(self.ctrs)
+
+        utilities = np.array([])
+        my_bids = np.array([])
+        my_payments = np.array([])
+        total_wins = 0
+
+        for t in range(n_auctions):
+            # agent chooses bid
+            bid_t = agent.bid()
+            # get bids from other competitors
+            other_bids_t = envir.round()
+            m_t = other_bids_t.max()
+
+            bids = np.append(bid_t, other_bids_t)
+            winner, payments_per_click = auction.round(bids)
+            my_win = (winner == 0)
+            f_t = (my_valuation - m_t) * my_win
+            c_t = m_t * my_win
+            # update agent
+            agent.update(f_t, c_t)
+
+            print(f"Auction {t+1}: Bid: {bid_t}, Utility: {f_t}, Payment: {c_t}, Winner: {winner}")
 
 
     def pricing(self):
@@ -52,7 +86,6 @@ class Requirement1:
 
         eps = self.T_pricing**(-1/3)
         K = int(1/eps + 1)
-        K = 10000
 
         discr_prices = np.linspace(min_price, max_price, K)
 
@@ -95,7 +128,7 @@ if __name__ == '__main__':
     parser.add_argument("--num_competitors", dest="num_competitors", type=int, default=10)
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
     parser.add_argument("--seed", dest="seed", type=int, default=1)
-    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='pricing')
+    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='bidding')
 
     #for pricing only
     parser.add_argument("--num_buyers", dest="num_buyers", type = int, default = 100)
