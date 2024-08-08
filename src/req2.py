@@ -131,15 +131,17 @@ class Requirement:
             price_t = discr_prices[arm_t]
             
             losses_t = np.array([])
+
+            d_t, r_t = envir.round(price_t, num_buyers, theta_seq[t])
+            total_sales += d_t
+            total_profit += r_t
+
             #full-feedback: compute losses for each possible price
             for price in discr_prices:
                 d_t, r_t = envir.round(price, num_buyers, theta_seq[t])
                 # vector of normalized losses
                 losses_t = np.append(losses_t, 1 - r_t/num_buyers)
-                if price == price_t:
-                    total_sales += d_t
-                    total_profit += r_t
-
+                    
             #update
             agent.update(losses_t)
 
@@ -162,7 +164,7 @@ if __name__ == '__main__':
     parser.add_argument("--num_competitors", dest="num_competitors", type=int, default=10)
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
     parser.add_argument("--seed", dest="seed", type=int, default=1)
-    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='bidding')
+    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='pricing')
 
     #for pricing only
     parser.add_argument("--num_buyers", dest="num_buyers", type = int, default = 100)
