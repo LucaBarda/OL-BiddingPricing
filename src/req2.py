@@ -38,78 +38,96 @@ class Requirement:
         min_price = item_cost
         max_price = 1
 
-        eps = self.T_pricing ** (-1 / 3)
-        K = int(1 / eps + 1)
+        # a round of pricing for each day
+        T_pricing = self.num_days
+        eps = T_pricing ** (-1 / 3)
+        K = int(1/eps + 1)
 
         discr_prices = np.linspace(min_price, max_price, K)
-        learning_rate = np.sqrt(np.log(K) / self.T_pricing)
+        learning_rate = np.sqrt(np.log(K) / T_pricing)
         pricing_agent = ag.HedgeAgent(K, learning_rate)
 
+        # parametric conversion probability        
         conversion_probability = lambda p, theta: (1 - p) ** theta
-        theta_seq = generate_adv_sequence(self.T_pricing, 0.5, 2)
-        pricing_envir = envi.AdversarialPricingEnvironment(conversion_probability, theta_seq, item_cost)
+        theta_seq = generate_adv_sequence(T_pricing, 0.5, 2)
+        pricing_envir = envi.AdversarialPricingFullEnvironment(conversion_probability, theta_seq, item_cost)
 
         num_competitors = self.num_competitors
-        budget = 400
+        budget = 4000
 
-        min_bid = 0.4
-        max_bid = 0.8
+        min_bid = 0
+        max_bid = 1
         available_bids = np.linspace(min_bid, max_bid, K)
 
-        eta = 1 / np.sqrt(self.T_bidding)
+        T_bidding = np.sum(self.auctions_per_day)       
+        eta = 1 / np.sqrt(T_bidding)
         my_ctr = self.ctrs[0]
         my_valuation = 0.8
 
-        total_sales = 0
-        total_profit = 0
-
-        other_bids = np.random.uniform(0.4, 0.6, size=(num_competitors, self.T_bidding))
-        bidding_agent = ag.AdversarialPacingAgent(available_bids, my_valuation, budget, self.T_bidding, eta)
-        bidding_envir = envi.AdversarialBiddingCompetitors(other_bids, num_competitors, self.T_bidding)
+        other_bids = np.random.uniform(0.4, 0.7, size=(num_competitors, T_bidding))
+        bidding_agent = ag.AdversarialPacingAgent(available_bids, my_valuation, budget, T_bidding, eta)
+        bidding_envir = envi.AdversarialBiddingCompetitors(other_bids, num_competitors, T_bidding)
         auction = au.FirstPriceAuction(self.ctrs)
 
-        auction_index = 0
+        total_sales = 0
+        total_profit = 0
+        
+        total_wins = 0
+        total_utility = 0
+        total_spent = 0
+
         for t in range(self.num_days):
             # Pricing phase: setting the price
             arm_t = pricing_agent.pull_arm()
             price_t = discr_prices[arm_t]
-            losses_t = np.array([])
-            company_num_buyers_t = 0 #how many possible-buyers we have in this day
 
-            # Bidding phase
-            for _ in range(self.auctions_per_day[t]):
+            day_wins = 0
+            n_clicks = 0
+            # Bidding phase: each auction is a user connecting to the site
+            for auction_index in range(self.auctions_per_day[t]):
+                
                 bid_t = bidding_agent.bid()
                 other_bids_t = bidding_envir.round()
                 m_t = other_bids_t.max()
                 bids = np.append(bid_t, other_bids_t)
-                winner, payments_per_click = auction.round(bids)
-                my_win = 0
-                if winner == 0:
-                    my_win = 1
 
-                    user_clicks = np.random.binomial(1, my_ctr) 
-                    if user_clicks:
-                        company_num_buyers_t += 1
-                f_t = (my_valuation - bid_t) * my_win
-                c_t = bid_t * my_win
+                winner, payment_per_click = auction.round(bids)
+
+                my_win = 0
+                if winner == 0: # auction won
+                    my_win = 1
+                    day_wins += 1
+
+                    user_clicked = np.random.binomial(1, self.ctrs[0])
+                    n_clicks += user_clicked
+
+                # utility and cost for the bidding agent are computed in expectation                
+                f_t = (my_valuation - my_ctr * payment_per_click) * my_win
+                c_t = my_ctr * payment_per_click * my_win
                 bidding_agent.update(f_t, c_t, m_t)
-                auction_index += 1
+
+                total_utility += f_t
+                total_spent += c_t
 
             # Pricing phase: updating the price
-            #full-feedback: compute losses for each possible price
-            for price in discr_prices:
-                d_t, r_t = pricing_envir.round(price, company_num_buyers_t, theta_seq[t])
-                # vector of normalized losses
-                to_append  = 1 - r_t / company_num_buyers_t if company_num_buyers_t > 0 else 1
-                losses_t = np.append(losses_t, to_append)
-                if price == price_t:
-                    total_sales += d_t
-                    total_profit += r_t
+            # get full feedback from environment
+            d_t, r_t = pricing_envir.round(discr_prices, n_clicks)
+            # compute losses with normalized reward
+            losses_t = 1 - r_t/n_clicks if n_clicks > 0 else np.ones(K)
+            # update pricing agent
             pricing_agent.update(losses_t)
 
-            print(f"Day {t + 1}: Price: {price_t}, Total Sales: {total_sales}, Total Profit: {total_profit}")
+            # update sales and profit on the played price
+            day_sales = d_t[arm_t]
+            day_profit = r_t[arm_t]
 
-        print(f"Total Sales: {total_sales}, Total Profit: {total_profit}")
+            total_wins += day_wins
+            total_sales += day_sales
+            total_profit += day_profit
+
+            print(f"Day {t+1}: Price: {price_t}, Day wins: {day_wins}, N.clicks: {n_clicks}, Day Sales: {day_sales}, Day Profit: {day_profit}")
+
+        print(f"Total wins: {total_wins}, Total utility: {total_utility}, Total spent: {total_spent}, Total sales: {total_sales}, Total profit: {total_profit}")
 
     def bidding(self):
         num_competitors = self.num_competitors
@@ -192,7 +210,7 @@ class Requirement:
         conversion_probability = lambda p, theta: (1 - p)**theta
 
         theta_seq = generate_adv_sequence(self.T_pricing, 0.5, 2)
-        envir = envi.AdversarialPricingEnvironment(conversion_probability, theta_seq, item_cost)
+        envir = envi.AdversarialPricingFullEnvironment(conversion_probability, theta_seq, item_cost)
 
         # demand = conversion_probability * num_buyers
         # reward_func = lambda price, demand: demand * (price - item_cost)
@@ -206,21 +224,17 @@ class Requirement:
             price_t = discr_prices[arm_t]
             
             losses_t = np.array([])
-            #full-feedback: compute losses for each possible price
-            for price in discr_prices:
-                d_t, r_t = envir.round(price, num_buyers, theta_seq[t])
-                # vector of normalized losses
-                losses_t = np.append(losses_t, 1 - r_t/num_buyers)
-                if price == price_t:
-                    total_sales += d_t
-                    total_profit += r_t
+            #full-feedback: need feedback on all prices
+            d_t, r_t = envir.round(discr_prices, num_buyers)
+            # compute losses with normalized reward
+            losses_t = 1 - r_t/num_buyers
 
-            #update
+            # update done only for the played price
+            total_sales += d_t[arm_t]
+            total_profit += r_t[arm_t]
+
+            #update agent with full feedback
             agent.update(losses_t)
-            
-            #WRONG?
-            # total_sales += d_t
-            # total_profit += r_t
 
             print(f"Day {t+1}: Price: {price_t}, Losses: {losses_t}, Theta: {theta_seq[t]}, Demand: {d_t}, Profit: {r_t}")
         
@@ -236,7 +250,7 @@ if __name__ == '__main__':
     parser.add_argument("--num_competitors", dest="num_competitors", type=int, default=10)
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
     parser.add_argument("--seed", dest="seed", type=int, default=1)
-    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='bidding')
+    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='main')
 
     #for pricing only
     parser.add_argument("--num_buyers", dest="num_buyers", type = int, default = 100)
@@ -246,7 +260,7 @@ if __name__ == '__main__':
     req = Requirement(args, 100)
 
     if args.run_type == 'main':
-        print('yioyo')
+        print('luha was here')
         req.main()
     elif args.run_type == 'bidding':
         req.bidding()

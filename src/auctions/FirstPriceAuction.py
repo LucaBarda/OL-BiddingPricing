@@ -13,8 +13,8 @@ class FirstPriceAuction(Auction):
         winner = adv_ranking[-1]
         return winner, adv_values
     
-    def get_payments_per_click(self, winners, values, bids):
+    def get_payments_per_click(self, winner, values, bids):
         # in first-price auctions the winner pays what he bid
-        payment = bids[winners]
+        payment = bids[winner]
         # or equivalently: payment = values[winners]/self.ctrs[winners]
         return payment.round(2)
