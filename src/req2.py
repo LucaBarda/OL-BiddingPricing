@@ -35,7 +35,8 @@ class Requirement:
 
     def main(self):
         pass
-
+    
+    ''' ONLY BIDDING '''
     def bidding(self):
         num_competitors = self.num_competitors
         budget = 400
@@ -99,6 +100,7 @@ class Requirement:
         
         print(f"Total wins: {total_wins}, Total utility: {total_utility}, Total spent: {total_spent}")
 
+    ''' ONLY PRICING '''
     def pricing(self):
         
         num_buyers = self.num_buyers
@@ -144,9 +146,6 @@ class Requirement:
                     
             #update
             agent.update(losses_t)
-
-            total_sales += d_t
-            total_profit += r_t
 
             print(f"Day {t+1}: Price: {price_t}, Losses: {losses_t}, Theta: {theta_seq[t]}, Demand: {d_t}, Profit: {r_t}")
         

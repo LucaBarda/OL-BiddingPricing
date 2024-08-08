@@ -18,7 +18,7 @@ class Requirement1:
         self.T_pricing = self.num_days
 
         #bidding members
-        self.auctions_per_day = [self.auctions_per_day for _ in range(self.num_days)] #since it is 1 slot auction, 1 bid equals 1 user 
+        self.auctions_per_day = [self.auctions_per_day for _ in range(self.num_days)] 
         self.auctions_per_day = [int(i + np.random.uniform(-5, 5)) for i in self.auctions_per_day] #add noise 
 
         self.competitors_per_day = [100 for _ in range(self.num_days)]
@@ -32,7 +32,8 @@ class Requirement1:
 
     def main(self):
         pass
-
+    
+    ''' ONLY BIDDING '''
     def bidding(self):
 
         num_competitors = self.num_competitors
@@ -82,6 +83,7 @@ class Requirement1:
 
         print(f"Total wins: {total_wins}, Total utility: {total_utility}, Total spent: {total_spent}")
 
+    ''' ONLY PRICING '''
     def pricing(self):
         
         item_cost = 10
@@ -123,7 +125,7 @@ class Requirement1:
 
             total_sales += d_t
             total_profit += r_t
-            
+
             print(f"Day {t+1}: Price: {price_t}, Demand: {d_t}, Reward: {r_t}")
 
         print(f"Total Sales: {total_sales}, Total Profit: {total_profit}")        
