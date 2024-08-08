@@ -2,6 +2,7 @@ import argparse
 import numpy as np
 import random
 import agents as ag
+from utils import set_seed, generate_adv_conv_prob_sequence
 #set seed in numpy
 
 class Requirement:
@@ -45,6 +46,7 @@ class Requirement:
 
     def pricing(self):
         num_buyers = self.num_buyers
+        cost_per_good = 0.1
 
         eps = self.T_pricing**(-1/3)
         min_price, max_price = 0, 1
@@ -54,17 +56,27 @@ class Requirement:
         hedge_lr = np.sqrt(np.log(K) / self.T_pricing)
         hedge_ag = ag.HedgeAgent(K, hedge_lr)
 
+        conv_probs = generate_adv_conv_prob_sequence(self.T_pricing)
+        demand = conv_probs * num_buyers
+        reward_func = lambda price, demand: demand * (price - cost_per_good)
+
+
         for t in range(self.T_pricing): 
             #pull arm
             arm = hedge_ag.pull_arm()
             #get price
-            price = discr_prices[arm]
-            #get demand
-            alpha = 1
-            beta = np.random.uniform(2, 8) #adversarial
-            demand = num_buyers * np.random.beta(alpha, beta)
+            price_t = discr_prices[arm]
+
+            #full-feedback: compute reward for each possible price
+            rewards = demand[t] * (discr_prices - cost_per_good)
+            reward_t = rewards[arm]
+            #normalize reward between 0 and 1ù
+            rewards = (rewards - (min_price - cost_per_good)*num_buyers) / (max_price*num_buyers - min_price*num_buyers)
+            losses = 1 - rewards
             #update
-            hedge_ag.update(demand)
+            hedge_ag.update(losses)
+        
+
 
         
 
