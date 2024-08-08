@@ -2,7 +2,7 @@ import numpy as np
 
 from .AbstractBiddingAgent import BiddingAgent
 
-class MultiplicativePacingAgent(BiddingAgent):
+class StochasticPacingAgent(BiddingAgent):
     def __init__(self, valuation, budget, T, eta):
         self.valuation = valuation
         self.budget = budget

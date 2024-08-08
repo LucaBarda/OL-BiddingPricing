@@ -50,7 +50,7 @@ class Requirement1:
 
         other_bids = lambda n: np.random.uniform(0.5, 1, n)
 
-        agent = ag.MultiplicativePacingAgent(my_valuation, budget, n_auctions, eta)
+        agent = ag.StochasticPacingAgent(my_valuation, budget, n_auctions, eta)
         envir = envi.StochasticBiddingCompetitors(other_bids, num_competitors)
         auction = au.SecondPriceAuction(self.ctrs)
 
