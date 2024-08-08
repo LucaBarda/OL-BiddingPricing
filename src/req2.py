@@ -1,8 +1,10 @@
 import argparse
 import numpy as np
 import random
+
 import agents as ag
-from utils import set_seed, generate_adv_conv_prob_sequence
+import environments as envi
+from utils import *
 #set seed in numpy
 
 class Requirement:
@@ -45,36 +47,45 @@ class Requirement:
 
 
     def pricing(self):
+        
         num_buyers = self.num_buyers
-        cost_per_good = 0.1
+        item_cost = 0.1
+        min_price = item_cost
+        max_price = 1 # price at which the conversion probability is 0
 
         eps = self.T_pricing**(-1/3)
-        min_price, max_price = 0, 1
-        discr_prices = np.linspace(min_price, max_price+eps, eps)
+        K = int(1/eps + 1)
+        
+        discr_prices = np.linspace(min_price, max_price, K)
 
-        K = len(discr_prices)
         hedge_lr = np.sqrt(np.log(K) / self.T_pricing)
         hedge_ag = ag.HedgeAgent(K, hedge_lr)
 
-        conv_probs = generate_adv_conv_prob_sequence(self.T_pricing)
-        demand = conv_probs * num_buyers
-        reward_func = lambda price, demand: demand * (price - cost_per_good)
+        conversion_probability = lambda p, theta: (1 - p)**theta
 
+        theta_seq = generate_adv_sequence(self.T_pricing, 0.5, 2)
+        envir = envi.AdversarialPricingEnvironment(conversion_probability, theta_seq, item_cost)
 
-        for t in range(self.T_pricing): 
+        # demand = conversion_probability * num_buyers
+        # reward_func = lambda price, demand: demand * (price - item_cost)
+
+        for t in range(self.T_pricing):
             #pull arm
-            arm = hedge_ag.pull_arm()
+            arm_t = hedge_ag.pull_arm()
             #get price
-            price_t = discr_prices[arm]
+            price_t = discr_prices[arm_t]
+            
+            losses_t = np.array([])
+            #full-feedback: compute losses for each possible price
+            for price in discr_prices:
+                d_t, r_t = envir.round(price, num_buyers, theta_seq[t])
+                # vector of normalized losses
+                losses_t = np.append(losses_t, 1 - r_t/num_buyers)
 
-            #full-feedback: compute reward for each possible price
-            rewards = demand[t] * (discr_prices - cost_per_good)
-            reward_t = rewards[arm]
-            #normalize reward between 0 and 1ù
-            rewards = (rewards - (min_price - cost_per_good)*num_buyers) / (max_price*num_buyers - min_price*num_buyers)
-            losses = 1 - rewards
             #update
-            hedge_ag.update(losses)
+            hedge_ag.update(losses_t)
+
+            print(f"Day {t+1}: Price: {price_t}, Losses: {losses_t}, Theta: {theta_seq[t]}")
         
 
 
@@ -90,7 +101,7 @@ if __name__ == '__main__':
     parser.add_argument("--num_competitors", dest="num_competitors", type=int, default=10)
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
     parser.add_argument("--seed", dest="seed", type=int, default=1)
-    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='main')
+    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='pricing')
 
     #for pricing only
     parser.add_argument("--num_buyers", dest="num_buyers", type = int, default = 100)
