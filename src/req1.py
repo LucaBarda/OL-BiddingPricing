@@ -36,11 +36,9 @@ class Requirement1:
     def bidding(self):
 
         num_competitors = self.num_competitors
-        budget = 100
-
+        budget = 1000
         # in this case we are just considering bidding so no need to separate for the different days.
         n_auctions = sum(self.auctions_per_day)
-
         # learning rate from theory
         eta = 1/np.sqrt(n_auctions)
         
@@ -48,7 +46,7 @@ class Requirement1:
         other_ctrs = self.ctrs[1:]
         my_valuation = 0.8
 
-        other_bids = lambda n: np.random.uniform(0.5, 1, n)
+        other_bids = lambda n: np.random.uniform(0.5, 0.7, n)
 
         agent = ag.StochasticPacingAgent(my_valuation, budget, n_auctions, eta)
         envir = envi.StochasticBiddingCompetitors(other_bids, num_competitors)
@@ -57,8 +55,10 @@ class Requirement1:
         utilities = np.array([])
         my_bids = np.array([])
         my_payments = np.array([])
+        
         total_wins = 0
-
+        total_utility = 0
+        total_spent = 0
         for t in range(n_auctions):
             # agent chooses bid
             bid_t = agent.bid()
@@ -74,8 +74,13 @@ class Requirement1:
             # update agent
             agent.update(f_t, c_t)
 
-            print(f"Auction {t+1}: Bid: {bid_t}, Utility: {f_t}, Payment: {c_t}, Winner: {winner}")
+            total_wins += my_win
+            total_utility += f_t
+            total_spent += c_t
 
+            print(f"Auction: {t+1}, Bid: {bid_t}, Opponent bid: {m_t}, Utility: {f_t}, Payment: {c_t}, Winner: {winner}")
+
+        print(f"Total wins: {total_wins}, Total utility: {total_utility}, Total spent: {total_spent}")
 
     def pricing(self):
         
@@ -101,6 +106,8 @@ class Requirement1:
 
         print(f"Max Reward: {max_reward}, Discretized Prices: {discr_prices}, K: {K}")
 
+        total_sales = 0
+        total_profit = 0
         for t in range(self.T_pricing): 
             # GP agent chooses price
             price_t = agent.pull_arm()
@@ -114,8 +121,12 @@ class Requirement1:
             # update agent with profit per customer
             agent.update(r_t/n_customers)
 
+            total_sales += d_t
+            total_profit += r_t
+            
             print(f"Day {t+1}: Price: {price_t}, Demand: {d_t}, Reward: {r_t}")
 
+        print(f"Total Sales: {total_sales}, Total Profit: {total_profit}")        
         
 
         

@@ -38,11 +38,13 @@ class Requirement:
 
     def bidding(self):
         num_competitors = self.num_competitors
-        budget = 100
+        budget = 400
 
-        K = 100
-        min_bid = 0
-        max_bid = 1
+        eps = self.T_pricing**(-1/3)
+        K = int(1/eps + 1)
+
+        min_bid = 0.4
+        max_bid = 0.8
         available_bids = np.linspace(min_bid, max_bid, K)
 
         # in this case we are just considering bidding so no need to separate for the different days.
@@ -51,25 +53,27 @@ class Requirement:
         # learning rate from theory
         eta = 1/np.sqrt(n_auctions)
         
-        my_ctr = self.ctrs[0]
+        my_ctr = 0.9
         other_ctrs = self.ctrs[1:]
         my_valuation = 0.8
         
         #In this case we are just considering bidding so no need to separete for the different days.
         total_auctions = sum(self.auctions_per_day)
 
-        other_bids = np.random.uniform(0, 1, size=(num_competitors, total_auctions))
+        other_bids = np.random.uniform(0.4, 0.6, size=(num_competitors, total_auctions))
         # matrix of bids for each competitor in each auction
 
         agent = ag.AdversarialPacingAgent(available_bids, my_valuation, budget, total_auctions, eta)
         envir = envi.AdversarialBiddingCompetitors(other_bids, num_competitors, total_auctions)
-        auction = au.SecondPriceAuction(self.ctrs)
+        auction = au.FirstPriceAuction(self.ctrs)
 
         utilities = np.array([])
         my_bids = np.array([])
         my_payments = np.array([])
-        total_wins = 0
 
+        total_wins = 0
+        total_utility = 0
+        total_spent = 0
         for t in range(total_auctions):
             # agent chooses bid
             bid_t = agent.bid()
@@ -87,23 +91,28 @@ class Requirement:
             # update agent with full feedback (m_t)
             agent.update(f_t, c_t, m_t)
 
-            print(f"Auction {t+1}: Bid: {bid_t}, Utility: {f_t}, Payment: {c_t}, Winner: {winner}")
+            total_wins += my_win
+            total_utility += f_t
+            total_spent += c_t
 
+            print(f"Auction {t+1}: Bid: {bid_t}, Opponent bid {m_t}, Utility: {f_t}, Payment: {c_t}, Winner: {winner}")
+        
+        print(f"Total wins: {total_wins}, Total utility: {total_utility}, Total spent: {total_spent}")
 
     def pricing(self):
         
         num_buyers = self.num_buyers
         item_cost = 0.1
         min_price = item_cost
-        max_price = 1 # price at which the conversion probability is 0
+        max_price = 1
 
         eps = self.T_pricing**(-1/3)
         K = int(1/eps + 1)
         
         discr_prices = np.linspace(min_price, max_price, K)
 
-        hedge_lr = np.sqrt(np.log(K) / self.T_pricing)
-        hedge_ag = ag.HedgeAgent(K, hedge_lr)
+        learning_rate = np.sqrt(np.log(K) / self.T_pricing)
+        agent = ag.HedgeAgent(K, learning_rate)
 
         conversion_probability = lambda p, theta: (1 - p)**theta
 
@@ -113,9 +122,11 @@ class Requirement:
         # demand = conversion_probability * num_buyers
         # reward_func = lambda price, demand: demand * (price - item_cost)
 
+        total_sales = 0
+        total_profit = 0
         for t in range(self.T_pricing):
             #pull arm
-            arm_t = hedge_ag.pull_arm()
+            arm_t = agent.pull_arm()
             #get price
             price_t = discr_prices[arm_t]
             
@@ -125,13 +136,19 @@ class Requirement:
                 d_t, r_t = envir.round(price, num_buyers, theta_seq[t])
                 # vector of normalized losses
                 losses_t = np.append(losses_t, 1 - r_t/num_buyers)
+                if price == price_t:
+                    total_sales += d_t
+                    total_profit += r_t
 
             #update
-            hedge_ag.update(losses_t)
+            agent.update(losses_t)
 
-            print(f"Day {t+1}: Price: {price_t}, Losses: {losses_t}, Theta: {theta_seq[t]}")
+            total_sales += d_t
+            total_profit += r_t
+
+            print(f"Day {t+1}: Price: {price_t}, Losses: {losses_t}, Theta: {theta_seq[t]}, Demand: {d_t}, Profit: {r_t}")
         
-
+        print(f"Total Sales: {total_sales}, Total Profit: {total_profit}")      
 
         
 
