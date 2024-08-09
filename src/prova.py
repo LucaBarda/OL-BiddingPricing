@@ -1,4 +1,3 @@
-import numpy as np
 import matplotlib.pyplot as plt
 import numpy as np
 from reportlab.lib.pagesizes import A4
@@ -8,40 +7,16 @@ from reportlab.lib.units import inch
 from reportlab.lib.utils import ImageReader
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
 
-def set_seed(seed):
-    np.random.seed(seed)
-    return
-
-def generate_adv_sequence(len, min, max):
-    return_array = np.zeros(len)
-    for i in range(len):
-        return_array[i] = np.random.uniform(min, max)
-    return return_array
-
-def normalize_zero_one(x, min_x, max_x):
-    return (x - min_x) / (max_x - min_x)
-
-def denormalize_zero_one(x, min_x, max_x):
-    return min_x + (max_x - min_x) * x
-
-
-
-
-#REPORT AND PLOTS
 class PDFReport:
-    def __init__(self, filename, requirement = 1):
-        self.requirement = requirement
-        assert self.requirement in [1, 2, 3, 4], "Requirement must be 1 or 2"
+    def __init__(self, filename):
         self.doc = SimpleDocTemplate(filename, pagesize=A4)
         self.elements = []
         self.width, self.height = A4
         self.styles = getSampleStyleSheet()
         self.story = []
 
-    def header(self, title = None, params=None):
+    def header(self, title, params=None):
         # Add Title
-        if title is None:
-            title = f"Requirement {self.requirement} {params['run_type']}"
         title_style = self.styles['Title']
         self.story.append(Paragraph(title, title_style))
         self.story.append(Spacer(1, 0.25 * inch))
@@ -89,3 +64,43 @@ class PDFReport:
 
     def save(self):
         self.doc.build(self.story)
+
+    def create_plot(self, plot_func, filename):
+        plt.figure(figsize=(5, 3))
+        plot_func()
+        plt.savefig(filename)
+        plt.close()
+# Usage Example
+if __name__ == "__main__":
+    report = PDFReport("example_report.pdf")
+    report.header("Annual Sales Report", {
+        "Author": "John Doe", "Date": "2024-08-09", 
+        "Department": "Sales", "Reviewed By": "Jane Smith", 
+        "Version": "1.0", "Status": "Draft"
+    })    
+    # Adding some text
+    report.add_text("This is an overview of the sales performance over the last year.")
+    
+    # Creating and adding the first image (Sine Wave)
+    report.create_plot(lambda: plt.plot(np.linspace(0, 10, 100), np.sin(np.linspace(0, 10, 100)), label='Sine'), "sine_wave.png")
+    report.add_image("sine_wave.png")
+
+    report.add_text("The following graphs show the trends in sales for the year.\n\n\n\n Now I want to show you what a viking can really do")
+    report.add_text("This is a test")
+    report.add_text("This is a test")
+    report.add_text("This is a test")
+
+    # Creating and adding the second image (Cosine Wave)
+    report.create_plot(lambda: plt.plot(np.linspace(0, 10, 100), np.cos(np.linspace(0, 10, 100)), label='Cosine'), "cosine_wave.png")
+    report.add_image("cosine_wave.png")
+
+    # Creating and adding the third image (Exponential Curve)
+    report.create_plot(lambda: plt.plot(np.linspace(0, 10, 100), np.exp(np.linspace(0, 10, 100) / 3), label='Exponential'), "exponential_curve.png")
+    report.add_image("exponential_curve.png", width = 3*inch, height = 2*inch)
+
+    # Creating and adding the fourth image (Random Scatter) in a double image layout
+    report.create_plot(lambda: plt.scatter(np.linspace(0, 10, 100), np.random.random(100), label='Random Scatter'), "random_scatter.png")
+    report.add_double_image("sine_wave.png", "random_scatter.png")
+
+    # Save the report
+    report.save()
