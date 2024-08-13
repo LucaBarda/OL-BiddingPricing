@@ -4,6 +4,10 @@ from .AdversarialPacingAgent import *
 from .UCB1BiddingAgent import *
 from .GPUCBAgent import *
 from .HedgeAgent import *
-from .clairvoyants.NonStationaryClairvoyantPricing import *
+from .UCB1Agent import *
+from .SWUCBAgent import *
+from .CUSUMUCBAgent import *
+from .ThompsonSamplingCUSUM import *
+
 
 
