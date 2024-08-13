@@ -34,6 +34,8 @@ class Requirement:
         self.T_bidding = np.sum(self.auctions_per_day)
 
     def main(self):
+        report = PDFReport("prova.pdf", self.requirement)
+ 
         item_cost = 0.1
         min_price = item_cost
         max_price = 1
@@ -77,13 +79,13 @@ class Requirement:
         total_spent = 0
 
         for t in range(self.num_days):
-            # Pricing phase: setting the price
+            ### Pricing phase: setting the price
             arm_t = pricing_agent.pull_arm()
             price_t = discr_prices[arm_t]
 
             day_wins = 0
             n_clicks = 0
-            # Bidding phase: each auction is a user connecting to the site
+            ### Bidding phase: each auction is a user connecting to the site
             for auction_index in range(self.auctions_per_day[t]):
                 
                 bid_t = bidding_agent.bid()
@@ -109,7 +111,7 @@ class Requirement:
                 total_utility += f_t
                 total_spent += c_t
 
-            # Pricing phase: updating the price
+            ### Pricing phase: updating the price
             # get full feedback from environment
             d_t, r_t = pricing_envir.round(discr_prices, n_clicks)
             # compute losses with normalized reward
@@ -132,8 +134,10 @@ class Requirement:
     def bidding(self):
         num_competitors = self.num_competitors
         budget = 400
+        
 
-        eps = self.T_pricing**(-1/3)
+
+        eps = self.T_bidding**(-1/3)
         K = int(1/eps + 1)
 
         min_bid = 0.4
