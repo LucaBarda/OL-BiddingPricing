@@ -17,7 +17,7 @@ class StochasticPacingAgent(BiddingAgent):
             return 0
         return self.valuation/(self.lmbd+1)
     
-    def update(self, f_t, c_t):
+    def update(self, f_t, c_t, m_t):
         # projection on [0, 1/rho]-> values smaller than 0 become 0 and higher than 1/rho become 1/rho
         self.lmbd = np.clip(self.lmbd-self.eta*(self.rho-c_t), 
                             a_min=0, a_max=1/self.rho)
