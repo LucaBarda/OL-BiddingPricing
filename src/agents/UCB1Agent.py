@@ -1,4 +1,5 @@
 import numpy as np
+
 class UCB1Agent:
     def __init__(self, K, T, range=1):
         self.K = K

@@ -1,12 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import numpy as np
-from reportlab.lib.pagesizes import A4
+""" from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.utils import ImageReader
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle """
 
 def set_seed(seed):
     np.random.seed(seed)
@@ -25,10 +25,8 @@ def denormalize_zero_one(x, min_x, max_x):
     return min_x + (max_x - min_x) * x
 
 
-
-
 #REPORT AND PLOTS
-class PDFReport:
+""" class PDFReport:
     def __init__(self, filename, requirement = 1):
         self.requirement = requirement
         assert self.requirement in [1, 2, 3, 4], "Requirement must be 1 or 2"
@@ -88,4 +86,4 @@ class PDFReport:
         self.story.append(Spacer(1, 0.25 * inch))
 
     def save(self):
-        self.doc.build(self.story)
+        self.doc.build(self.story) """

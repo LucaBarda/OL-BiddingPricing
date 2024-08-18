@@ -3,11 +3,11 @@ import numpy as np
 from .AbstractAgent import Agent
 
 class GPUCBAgent(Agent):
-    def __init__(self, T, discretization=100):
+    def __init__(self, T, discretization=100, scale=1):
         self.T = T
         # GPUCB agent assumes prices are in [0,1] (which is why we need rescaling outside the class)
         self.arms = np.linspace(0, 1, discretization)
-        self.gp = RBFGaussianProcess(scale=2).fit()
+        self.gp = RBFGaussianProcess(scale).fit()
         self.a_t = None
         self.action_hist = np.array([])
         self.reward_hist = np.array([])
