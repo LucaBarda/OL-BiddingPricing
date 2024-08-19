@@ -24,6 +24,53 @@ def normalize_zero_one(x, min_x, max_x):
 def denormalize_zero_one(x, min_x, max_x):
     return min_x + (max_x - min_x) * x
 
+def get_clairvoyant_truthful(budget, my_valuation, m_t, n_auctions):
+    # the clairvoyant knows the max bid at each round
+    ## I compute my sequence of utilities at every round
+    utility = (my_valuation-m_t)*(my_valuation>=m_t)
+    # recall that operations with ndarray produce ndarray
+
+    ## Now I have to find the sequence of m_t summing up to budget B and having the maximum sum of utility
+    ## In second price auctions, I can find the sequence **greedily**:
+    sorted_round_utility = np.flip(np.argsort(utility)) # sorted rounds, from most profitable to less profitable
+    clairvoyant_utilities = np.zeros(n_auctions)
+    clairvoyant_bids= np.zeros(n_auctions)
+    clairvoyant_payments = np.zeros(n_auctions)
+    c = 0 # total money spent
+    i = 0 # index over the auctions
+    while c <= budget-1 and i < n_auctions:
+        clairvoyant_bids[sorted_round_utility[i]] = 1 # bid 1 in the remaining most profitable auction
+        # recall that since this is a second-price auction what I pay doesn't depend on my bid (but determines if I win)
+        # notice that since the competitors' bids are fixed < 1 the clairvoyant can just bid 1 to the auctions he wants to win and 0 to the rest
+        clairvoyant_utilities[sorted_round_utility[i]] = utility[sorted_round_utility[i]]
+        clairvoyant_payments[sorted_round_utility[i]] = m_t[sorted_round_utility[i]]
+        c += m_t[sorted_round_utility[i]]
+        i+=1
+    return clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments
+
+def plot_clayrvoyant_truthful(budget, clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments):
+    plt.title('Clairvoyant Bids')
+    plt.plot(clairvoyant_bids)
+    plt.xlabel('$t$')
+    plt.ylabel('$b_t$')
+    plt.title('Chosen Bids')
+    plt.show()
+
+    plt.title('Clairvoyant Cumulative Payment')
+    plt.plot(np.cumsum(clairvoyant_payments))
+    plt.axhline(budget, color='red', linestyle='--', label='Budget')
+    plt.legend()
+    plt.xlabel('$t$')
+    plt.ylabel('$\sum m_t~ 1_{b_t > m_t}$')
+    plt.show()
+
+    plt.title('Clairvoyant Cumulative Utility')
+    plt.plot(np.cumsum(clairvoyant_utilities))
+    plt.legend()
+    plt.xlabel('$t$')
+    plt.ylabel('$\sum u_t$')
+    plt.show()
+    
 
 #REPORT AND PLOTS
 """ class PDFReport:

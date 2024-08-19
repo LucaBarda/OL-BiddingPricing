@@ -1,6 +1,7 @@
 import argparse
 import numpy as np
 import random
+import matplotlib.pyplot as plt
 
 import agents as ag
 import environments as envi
@@ -69,7 +70,7 @@ class Requirement1:
         my_ctr = self.ctrs[0]
         my_valuation = 0.8
 
-        other_bids = lambda n: np.random.uniform(0.4, 0.7, n)
+        other_bids = lambda n: np.random.beta(10, 7, n)
 
         bidding_envir = envi.StochasticBiddingCompetitors(other_bids, num_competitors)
         auction = au.SecondPriceAuction(self.ctrs)
@@ -144,7 +145,7 @@ class Requirement1:
     def bidding(self):
 
         num_competitors = self.num_competitors
-        my_budget = 1000
+        my_budget = 50
         # in this case we are just considering bidding so no need to separate for the different days.
         n_auctions = sum(self.auctions_per_day)
         # discretization step from theory
@@ -159,7 +160,7 @@ class Requirement1:
 
         # WLOG we assume bids to be in [0,1]
         available_bids = np.linspace(0, 1, K)
-        other_bids = lambda n: np.random.uniform(0.4, 0.7, n)
+        other_bids = lambda n: np.random.beta(10, 7, n)
 
         envir = envi.StochasticBiddingCompetitors(other_bids, num_competitors)
         auction = au.SecondPriceAuction(self.ctrs)
@@ -175,6 +176,7 @@ class Requirement1:
         utilities = np.array([])
         my_bids = np.array([])
         my_payments = np.array([])
+        m_ts = np.array([])
         
         total_wins = 0
         total_utility = 0
@@ -185,6 +187,7 @@ class Requirement1:
             # get bids from other competitors
             other_bids_t = envir.round()
             m_t = other_bids_t.max()
+            m_ts = np.append(m_ts, m_t)
 
             bids = np.append(bid_t, other_bids_t)
             winner, payments_per_click = auction.round(bids)
@@ -201,6 +204,11 @@ class Requirement1:
             print(f"Auction: {t+1}, Bid: {bid_t}, Opponent bid: {m_t}, Utility: {f_t}, Payment: {c_t}, Winner: {winner}")
 
         print(f"Total wins: {total_wins}, Total utility: {total_utility}, Total spent: {total_spent}")
+
+        ''' CLAIRVOYANT '''
+        clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_truthful(my_budget, my_valuation, m_ts, n_auctions)
+
+        plot_clayrvoyant_truthful(my_budget, clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments)
 
     ''' ONLY PRICING '''
     def pricing(self):
@@ -262,7 +270,7 @@ if __name__ == '__main__':
     parser.add_argument("--num_competitors", dest="num_competitors", type=int, default=10)
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
     parser.add_argument("--seed", dest="seed", type=int, default=3)
-    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='main')
+    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='bidding')
     parser.add_argument("--bidder_type", dest="bidder_type", type=str, choices=['UCB-like', 'pacing'], default='pacing')
 
     #for pricing only
