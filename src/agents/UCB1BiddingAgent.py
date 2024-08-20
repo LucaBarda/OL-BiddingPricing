@@ -19,16 +19,22 @@ class UCB1BiddingAgent(BiddingAgent):
     
     def bid(self):
         if self.budget < 1:
-            return 0
+            return 0 # budget depleted
         if self.t < self.K:
             self.b_t = self.t 
         else:
+            # compute utility UCB and cost LCB for every arm
             f_ucb = self.f_avg + self.range*np.sqrt(2*np.log(self.T)/self.N_pulls)
-            c_lcb = self.c_avg - self.range*np.sqrt(2*np.log(self.T)/self.N_pulls)
-            
-            res = opt.linprog(c=-f_ucb, A_ub=[c_lcb], b_ub=[self.rho], A_eq=[np.ones(self.K)], b_eq=[1], bounds=(0,1), method="highs")
-            gamma = res.x
-            self.b_t = np.random.choice(range(self.K), p=gamma) # index of the last played bid
+            c_lcb = self.c_avg - self.range*np.sqrt(2*np.log(self.T)/self.N_pulls)*0.001
+            # we reduce the optimism in the cost because otherwise we run out of budget early
+
+            prog = opt.linprog(c=-f_ucb, A_ub=[c_lcb], b_ub=[self.rho], A_eq=[np.ones(self.K)], b_eq=[1], bounds=(0,1))
+            # prog = opt.linprog(c=-self.f_avg, A_ub=[self.c_avg], b_ub=[self.rho], A_eq=[np.ones(self.K)], b_eq=[1], bounds=(0,1), method="highs")
+            gamma = prog.x # solution of the linear program
+            # for numerical reasons the probabilities might not sum up to 1
+            sum_gamma = np.sum(gamma)
+            gamma = gamma/sum_gamma # this ensures that the sum of the probabilities is 1
+            self.b_t = np.random.choice(range(self.K), p=gamma) # sample index of the bid to play
         return self.bids[self.b_t]
     
     def update(self, f_t, c_t):

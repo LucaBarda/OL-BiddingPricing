@@ -48,7 +48,7 @@ def get_clairvoyant_truthful(budget, my_valuation, m_t, n_auctions):
         i+=1
     return clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments
 
-def plot_clayrvoyant_truthful(budget, clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments):
+def plot_clayrvoyant(budget, clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments):
     plt.title('Clairvoyant Bids')
     plt.plot(clairvoyant_bids)
     plt.xlabel('$t$')
@@ -70,7 +70,37 @@ def plot_clayrvoyant_truthful(budget, clairvoyant_bids, clairvoyant_utilities, c
     plt.xlabel('$t$')
     plt.ylabel('$\sum u_t$')
     plt.show()
-    
+
+def plot_agent(budget, agent_bids, agent_utilities, agent_payments):
+    plt.title('Agent Bids')
+    plt.plot(agent_bids)
+    plt.xlabel('$t$')
+    plt.ylabel('$b_t$')
+    plt.title('Chosen Bids')
+    plt.show()
+
+    plt.title('Agent Cumulative Payment')
+    plt.plot(np.cumsum(agent_payments))
+    plt.axhline(budget, color='red', linestyle='--', label='Budget')
+    plt.legend()
+    plt.xlabel('$t$')
+    plt.ylabel('$\sum m_t~ 1_{b_t > m_t}$')
+    plt.show()
+
+    plt.title('Agent Cumulative Utility')
+    plt.plot(np.cumsum(agent_utilities))
+    plt.legend()
+    plt.xlabel('$t$')
+    plt.ylabel('$\sum u_t$')
+    plt.show()
+
+def plot_regret(agent_utilities, clairvoyant_utilities):
+    regret = np.cumsum(clairvoyant_utilities) - np.cumsum(agent_utilities)
+    plt.title('Agent Regret')
+    plt.plot(regret)
+    plt.xlabel('$t$')
+    plt.ylabel('Regret')
+    plt.show()
 
 #REPORT AND PLOTS
 """ class PDFReport:
