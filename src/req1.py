@@ -214,10 +214,10 @@ class Requirement1:
         ''' CLAIRVOYANT '''
         clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_truthful(my_budget, my_valuation, m_ts, n_auctions)
 
-        # plot_clayrvoyant(my_budget, clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments)
+        # plot_clayrvoyant_truthful(my_budget, clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments)
 
         ''' AGENT '''
-        plot_agent(my_budget, my_bids, my_utilities, my_payments)
+        plot_agent_bidding(my_budget, my_bids, my_utilities, my_payments)
 
         ''' REGRET '''
         plot_regret(my_utilities, clairvoyant_utilities)
@@ -225,14 +225,16 @@ class Requirement1:
     ''' ONLY PRICING '''
     def pricing(self):
         
-        item_cost = 2
+        item_cost = 0.1
         min_price = item_cost # anything lower than this would be a loss
-        max_price = 20 # price at which the conversion probability is 0
+        max_price = 1 # price at which the conversion probability is 0
         n_customers = 100
 
         # discretization step from theory
         eps = self.T_pricing**(-1/3)
-        K = int(1/eps + 1)
+        K = int(1/eps)
+        if K % 2 == 0:
+            K += 1 # this ensures K is odd
 
         discr_prices = np.linspace(min_price, max_price, K)
 
@@ -242,34 +244,82 @@ class Requirement1:
         reward_function = lambda price, n_sales: (price - item_cost) * n_sales
 
         # the maximum possible profit is selling to all customers at the maximum price for which the conversion probability is > 0
-        max_reward = discr_prices[-1] * n_customers
-
-        agent = ag.GPUCBAgent(T = self.T_pricing, discretization = K)
-        envir = envi.StochasticPricingEnvironment(conversion_probability, item_cost)
+        max_reward = max_price * n_customers
 
         print(f"Max Reward: {max_reward}, Discretized Prices: {discr_prices}, K: {K}")
+        
+        ''' CLAIRVOYANT '''
+        expected_profit_curve = n_customers * conversion_probability(discr_prices) * (discr_prices-item_cost)
+        best_price_index = np.argmax(expected_profit_curve)
 
-        total_sales = 0
-        total_profit = 0
-        for t in range(self.T_pricing): 
-            # GP agent chooses price
-            price_t = agent.pull_arm()
-            # rescale price from [0,1] to [min_price, max_price]
-            price_t = denormalize_zero_one(price_t, min_price, max_price)
+        expected_clairvoyant_rewards = np.repeat(np.ceil(expected_profit_curve[best_price_index]), self.T_pricing)
 
-            # get demand and reward from pricing environment
-            d_t, r_t = envir.round(price_t, n_customers)
-            # reward = total profit
+        n_trials = 10
+        regret_per_trial = []
 
-            # update agent with profit normalized to [0,1]
-            agent.update(normalize_zero_one(r_t, 0, max_reward))
+        for seed in range(n_trials):
+            np.random.seed(seed)
 
-            total_sales += d_t
-            total_profit += r_t
+            agent = ag.GPUCBAgent(T = self.T_pricing, discretization = K)
+            envir = envi.StochasticPricingEnvironment(conversion_probability, item_cost)
 
-            print(f"Day {t+1}: Price: {price_t}, Demand: {d_t}, Reward: {r_t}")
+            my_prices = np.array([])
+            my_sales = np.array([])
+            my_rewards = np.array([])
+            total_sales = 0
+            total_profit = 0
 
-        print(f"Total Sales: {total_sales}, Total Profit: {total_profit}")        
+            for t in range(self.T_pricing): 
+                # GP agent chooses price
+                price_t = agent.pull_arm()
+                # rescale price from [0,1] to [min_price, max_price]
+                price_t = denormalize_zero_one(price_t, min_price, max_price)
+
+                # get demand and reward from pricing environment
+                d_t, r_t = envir.round(price_t, n_customers)
+                # reward = total profit
+
+                # update agent with profit normalized to [0,1]
+                agent.update(normalize_zero_one(r_t, 0, max_reward))
+
+                ''' LOGGING '''
+                my_prices = np.append(my_prices, price_t)
+                my_sales = np.append(my_sales, d_t)
+                my_rewards = np.append(my_rewards, r_t)
+
+                total_sales += d_t
+                total_profit += r_t
+
+                print(f"Day {t+1}: Price: {price_t}, Demand: {d_t}, Reward: {r_t}")
+
+            print(f"Total Sales: {total_sales}, Total Profit: {total_profit}")
+
+            cumulative_regret = np.cumsum(expected_clairvoyant_rewards - my_rewards)
+            regret_per_trial.append(cumulative_regret)
+
+        regret_per_trial = np.array(regret_per_trial)
+        average_regret = regret_per_trial.mean(axis=0)
+        regret_sd = regret_per_trial.std(axis=0)
+
+        plt.plot(np.arange(self.T_pricing), average_regret, label='Average Regret')
+        plt.title('cumulative regret of UCB1')
+        plt.fill_between(np.arange(self.T_pricing),
+                        average_regret-regret_sd/np.sqrt(n_trials),
+                        average_regret+regret_sd/np.sqrt(n_trials),
+                        alpha=0.3,
+                        label='Uncertainty')
+        #plt.plot((0,T-1), (average_regret[0], average_regret[-1]), 'ro', linestyle="--")
+        plt.xlabel('$t$')
+        plt.legend()
+        plt.show()
+
+        plot_agent_pricing(my_prices, my_sales, my_rewards)
+
+        plot_regret(my_rewards, expected_clairvoyant_rewards)
+
+        # plot_demand_curve(discr_prices, conversion_probability, n_customers)
+
+        # plot_profit_curve(discr_prices, conversion_probability, n_customers, item_cost)
         
 
         
@@ -281,8 +331,8 @@ if __name__ == '__main__':
     parser.add_argument("--n_iters", dest="n_iters", type = int, default=100)
     parser.add_argument("--num_competitors", dest="num_competitors", type=int, default=10)
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
-    parser.add_argument("--seed", dest="seed", type=int, default=1)
-    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='bidding')
+    parser.add_argument("--seed", dest="seed", type=int, default=11)
+    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='pricing')
     parser.add_argument("--bidder_type", dest="bidder_type", type=str, choices=['UCB-like', 'pacing'], default='UCB-like')
 
     #for pricing only

@@ -48,7 +48,7 @@ def get_clairvoyant_truthful(budget, my_valuation, m_t, n_auctions):
         i+=1
     return clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments
 
-def plot_clayrvoyant(budget, clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments):
+def plot_clayrvoyant_truthful(budget, clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments):
     plt.title('Clairvoyant Bids')
     plt.plot(clairvoyant_bids)
     plt.xlabel('$t$')
@@ -71,7 +71,7 @@ def plot_clayrvoyant(budget, clairvoyant_bids, clairvoyant_utilities, clairvoyan
     plt.ylabel('$\sum u_t$')
     plt.show()
 
-def plot_agent(budget, agent_bids, agent_utilities, agent_payments):
+def plot_agent_bidding(budget, agent_bids, agent_utilities, agent_payments):
     plt.title('Agent Bids')
     plt.plot(agent_bids)
     plt.xlabel('$t$')
@@ -93,6 +93,58 @@ def plot_agent(budget, agent_bids, agent_utilities, agent_payments):
     plt.xlabel('$t$')
     plt.ylabel('$\sum u_t$')
     plt.show()
+
+def plot_agent_pricing(agent_prices, agent_sales, agent_rewards):
+    plt.title('Agent Prices')
+    plt.plot(agent_prices)
+    plt.xlabel('$t$')
+    plt.ylabel('$p_t$')
+    plt.title('Chosen Prices')
+    plt.show()
+
+    plt.title('Agent Cumulative Sales')
+    plt.plot(np.cumsum(agent_sales))
+    plt.xlabel('$t$')
+    plt.ylabel('$\sum s_t$')
+    plt.show()
+
+    plt.title('Agent Cumulative Revenue')
+    plt.plot(np.cumsum(agent_rewards))
+    plt.xlabel('$t$')
+    plt.ylabel('$\sum r_t$')
+    plt.show()
+
+def plot_demand_curve(prices, conversion_probability, n_customers):
+    expected_demand_curve = n_customers * conversion_probability(prices)
+
+    # numpy allows us to pass an array of parameters instead of a single parameter to a distribution
+    estimated_demand_curve = np.random.binomial(n_customers, conversion_probability(prices))
+    # an array of random variables is sampled, each using one of the parameters in the array
+
+    plt.figure()
+    plt.plot(prices, expected_demand_curve, label='Expected Demand Curve')
+    plt.plot(prices, estimated_demand_curve, label='Estimated Demand Curve')
+    plt.xlabel('Item Price')
+    plt.legend()
+    plt.show();
+
+def plot_profit_curve(prices, conversion_probability, n_customers, cost):
+
+    expected_profit_curve = n_customers * conversion_probability(prices) * (prices-cost)
+
+    estimated_profit_curve = np.random.binomial(n_customers, conversion_probability(prices)) * (prices-cost)
+
+    best_price_index = np.argmax(expected_profit_curve)
+    best_price = prices[best_price_index]
+
+    plt.figure()
+    plt.plot(prices, expected_profit_curve, label='Expected Profit Curve')
+    plt.plot(prices, estimated_profit_curve, label='Estimated Profit Curve')
+    plt.scatter(best_price, expected_profit_curve[best_price_index], color='red', s=50)
+    plt.xlabel('Item Price')
+    plt.legend()
+    plt.show();
+
 
 def plot_regret(agent_utilities, clairvoyant_utilities):
     regret = np.cumsum(clairvoyant_utilities) - np.cumsum(agent_utilities)
