@@ -74,7 +74,7 @@ class Requirement1:
 
         bidding_envir = envi.StochasticBiddingCompetitors(other_bids, num_competitors)
         auction = au.SecondPriceAuction(self.ctrs)
-        if self.bidder_type == 'UCB-like':
+        if self.bidder_type == 'UCB':
             bidding_agent = ag.UCB1BiddingAgent(my_budget, available_bids, T_bidding)
         elif self.bidder_type == 'pacing':
             bidding_agent = ag.StochasticPacingAgent(my_valuation, my_budget, T_bidding, eta)
