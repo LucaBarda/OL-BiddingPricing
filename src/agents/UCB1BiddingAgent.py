@@ -24,8 +24,8 @@ class UCB1BiddingAgent(BiddingAgent):
             self.b_t = self.t 
         else:
             # compute utility UCB and cost LCB for every arm
-            f_ucb = self.f_avg + self.range*np.sqrt(2*np.log(self.T)/self.N_pulls)
-            c_lcb = self.c_avg - self.range*np.sqrt(2*np.log(self.T)/self.N_pulls)*0.001
+            f_ucb = self.f_avg + self.range*np.sqrt(2*np.log(self.T)/self.N_pulls)*(1 - self.t/self.T)**8
+            c_lcb = self.c_avg - self.range*np.sqrt(2*np.log(self.T)/self.N_pulls)*0.001*(1 - self.t/self.T)**8
             # we reduce the optimism in the cost because otherwise we run out of budget early
 
             prog = opt.linprog(c=-f_ucb, A_ub=[c_lcb], b_ub=[self.rho], A_eq=[np.ones(self.K)], b_eq=[1], bounds=(0,1))

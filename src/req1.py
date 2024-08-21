@@ -166,7 +166,7 @@ class Requirement1:
         envir = envi.StochasticBiddingCompetitors(other_bids, num_competitors)
         auction = au.SecondPriceAuction(self.ctrs)
 
-        if self.bidder_type == 'UCB-like':
+        if self.bidder_type == 'UCB':
             agent = ag.UCB1BiddingAgent(my_budget, available_bids, n_auctions)
         elif self.bidder_type == 'pacing':
             agent = ag.StochasticPacingAgent(my_valuation, my_budget, n_auctions, eta)
@@ -226,7 +226,7 @@ class Requirement1:
     def pricing(self):
         
         item_cost = 0.1
-        min_price = item_cost # anything lower than this would be a loss
+        min_price = 0 # anything lower than this would be a loss
         max_price = 1 # price at which the conversion probability is 0
         n_customers = 100
 
@@ -244,7 +244,8 @@ class Requirement1:
         reward_function = lambda price, n_sales: (price - item_cost) * n_sales
 
         # the maximum possible profit is selling to all customers at the maximum price for which the conversion probability is > 0
-        max_reward = max_price * n_customers
+        max_reward = (max_price - item_cost) * n_customers
+        min_reward = (min_price - item_cost) * n_customers
 
         print(f"Max Reward: {max_reward}, Discretized Prices: {discr_prices}, K: {K}")
         
@@ -254,7 +255,7 @@ class Requirement1:
 
         expected_clairvoyant_rewards = np.repeat(np.ceil(expected_profit_curve[best_price_index]), self.T_pricing)
 
-        n_trials = 10
+        n_trials = 5
         regret_per_trial = []
 
         for seed in range(n_trials):
@@ -280,7 +281,7 @@ class Requirement1:
                 # reward = total profit
 
                 # update agent with profit normalized to [0,1]
-                agent.update(normalize_zero_one(r_t, 0, max_reward))
+                agent.update(normalize_zero_one(r_t, min_reward, max_reward))
 
                 ''' LOGGING '''
                 my_prices = np.append(my_prices, price_t)
@@ -302,7 +303,7 @@ class Requirement1:
         regret_sd = regret_per_trial.std(axis=0)
 
         plt.plot(np.arange(self.T_pricing), average_regret, label='Average Regret')
-        plt.title('cumulative regret of UCB1')
+        plt.title('Cumulative regret of GPUCB')
         plt.fill_between(np.arange(self.T_pricing),
                         average_regret-regret_sd/np.sqrt(n_trials),
                         average_regret+regret_sd/np.sqrt(n_trials),
@@ -315,14 +316,14 @@ class Requirement1:
 
         plot_agent_pricing(my_prices, my_sales, my_rewards)
 
-        plot_regret(my_rewards, expected_clairvoyant_rewards)
+        # plot_regret(my_rewards, expected_clairvoyant_rewards)
 
         # plot_demand_curve(discr_prices, conversion_probability, n_customers)
 
         # plot_profit_curve(discr_prices, conversion_probability, n_customers, item_cost)
         
 
-        
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -333,7 +334,7 @@ if __name__ == '__main__':
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
     parser.add_argument("--seed", dest="seed", type=int, default=11)
     parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='pricing')
-    parser.add_argument("--bidder_type", dest="bidder_type", type=str, choices=['UCB-like', 'pacing'], default='UCB-like')
+    parser.add_argument("--bidder_type", dest="bidder_type", type=str, choices=['UCB', 'pacing'], default='UCB')
 
     #for pricing only
     parser.add_argument("--num_buyers", dest="num_buyers", type = int, default = 100)
