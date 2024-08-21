@@ -255,7 +255,7 @@ class Requirement1:
 
         expected_clairvoyant_rewards = np.repeat(np.ceil(expected_profit_curve[best_price_index]), self.T_pricing)
 
-        n_trials = 5
+        n_trials = self.n_iters
         regret_per_trial = []
 
         for seed in range(n_trials):
