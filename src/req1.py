@@ -74,7 +74,7 @@ class Requirement1:
 
         bidding_envir = envi.StochasticBiddingCompetitors(other_bids, num_competitors)
         auction = au.SecondPriceAuction(self.ctrs)
-        if self.bidder_type == 'UCB-like':
+        if self.bidder_type == 'UCB':
             bidding_agent = ag.UCB1BiddingAgent(my_budget, available_bids, T_bidding)
         elif self.bidder_type == 'pacing':
             bidding_agent = ag.StochasticPacingAgent(my_valuation, my_budget, T_bidding, eta)
@@ -166,7 +166,7 @@ class Requirement1:
         envir = envi.StochasticBiddingCompetitors(other_bids, num_competitors)
         auction = au.SecondPriceAuction(self.ctrs)
 
-        if self.bidder_type == 'UCB-like':
+        if self.bidder_type == 'UCB':
             agent = ag.UCB1BiddingAgent(my_budget, available_bids, n_auctions)
         elif self.bidder_type == 'pacing':
             agent = ag.StochasticPacingAgent(my_valuation, my_budget, n_auctions, eta)
@@ -333,7 +333,7 @@ if __name__ == '__main__':
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
     parser.add_argument("--seed", dest="seed", type=int, default=11)
     parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='pricing')
-    parser.add_argument("--bidder_type", dest="bidder_type", type=str, choices=['UCB-like', 'pacing'], default='UCB-like')
+    parser.add_argument("--bidder_type", dest="bidder_type", type=str, choices=['UCB', 'pacing'], default='UCB-like')
 
     #for pricing only
     parser.add_argument("--num_buyers", dest="num_buyers", type = int, default = 100)

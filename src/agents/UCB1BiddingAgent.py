@@ -37,7 +37,7 @@ class UCB1BiddingAgent(BiddingAgent):
             self.b_t = np.random.choice(range(self.K), p=gamma) # sample index of the bid to play
         return self.bids[self.b_t]
     
-    def update(self, f_t, c_t):
+    def update(self, f_t, c_t, m_t = None):
         self.N_pulls[self.b_t] += 1
         self.f_avg[self.b_t] += (f_t - self.f_avg[self.b_t])/self.N_pulls[self.b_t]
         self.c_avg[self.b_t] += (c_t - self.c_avg[self.b_t])/self.N_pulls[self.b_t]

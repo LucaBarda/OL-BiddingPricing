@@ -33,7 +33,7 @@ class Requirement:
 
 
     def main(self):
-        report = PDFReport("prova.pdf", 4)
+        # report = PDFReport("prova.pdf", 4)
 
         num_participants = self.num_participants
         if num_participants % 3 != 0:
