@@ -26,7 +26,6 @@ class Requirement1:
 
         if self.ctrs is None:
             self.ctrs = np.random.uniform(0.4, 0.9, self.num_competitors+1)
-        else:
             assert len(self.ctrs) == self.num_competitors+1, "Number of CTRs must match number of bidders"
 
         self.T_bidding = np.sum(self.auctions_per_day)
@@ -58,15 +57,13 @@ class Requirement1:
         min_bid = 0
         max_bid = 1
 
-        # a round of bidding for each auction
-        T_bidding = np.sum(self.auctions_per_day)  
-        eps = T_bidding ** (-1 / 3)
+        eps = self.T_bidding ** (-1 / 3)
         # discretization step from theory
         K = int(1/eps + 1)
 
         available_bids = np.linspace(min_bid, max_bid, K)
         # learning rate from theory
-        eta = 1 / np.sqrt(T_bidding)
+        eta = 1 / np.sqrt(self.T_bidding)
         my_ctr = self.ctrs[0]
         my_valuation = 0.8
 
@@ -75,9 +72,9 @@ class Requirement1:
         bidding_envir = envi.StochasticBiddingCompetitors(other_bids, num_competitors)
         auction = au.SecondPriceAuction(self.ctrs)
         if self.bidder_type == 'UCB':
-            bidding_agent = ag.UCB1BiddingAgent(my_budget, available_bids, T_bidding)
+            bidding_agent = ag.UCB1BiddingAgent(my_budget, available_bids, self.T_bidding)
         elif self.bidder_type == 'pacing':
-            bidding_agent = ag.StochasticPacingAgent(my_valuation, my_budget, T_bidding, eta)
+            bidding_agent = ag.StochasticPacingAgent(my_valuation, my_budget, self.T_bidding, eta)
         else:
             print("Invalid bidder type")
             exit(1)
@@ -145,82 +142,106 @@ class Requirement1:
     def bidding(self):
 
         num_competitors = self.num_competitors
-        my_budget = 500
+        my_budget = 100
         # in this case we are just considering bidding so no need to separate for the different days.
-        n_auctions = sum(self.auctions_per_day)
+        n_auctions = self.T_bidding
         # discretization step from theory
         eps = n_auctions**(-1/3)
         K = int(1/eps + 1)
         # learning rate from theory
         eta = 1/np.sqrt(n_auctions)
-        
-        my_ctr = self.ctrs[0]
-        other_ctrs = self.ctrs[1:]
+
         my_valuation = 0.8
 
         # WLOG we assume bids to be in [0,1]
         available_bids = np.linspace(0, 1, K)
         other_bids = lambda n: np.random.beta(40, 27, n)
         # with alpha=40 and beta=27 the distribution is centered around 0.6
+        my_ctr = 0.75
+        self.ctrs[0] = my_ctr
+        other_ctrs = self.ctrs[1:]
 
-        envir = envi.StochasticBiddingCompetitors(other_bids, num_competitors)
-        auction = au.SecondPriceAuction(self.ctrs)
+        regret_per_trial = []
+        for seed in range(self.n_iters):
+            np.random.seed(seed)
 
-        if self.bidder_type == 'UCB':
-            agent = ag.UCB1BiddingAgent(my_budget, available_bids, n_auctions)
-        elif self.bidder_type == 'pacing':
-            agent = ag.StochasticPacingAgent(my_valuation, my_budget, n_auctions, eta)
-        else:
-            print("Invalid bidder type")
-            exit(1)
-        
-        my_utilities = np.array([])
-        my_bids = np.array([])
-        my_payments = np.array([])
-        m_ts = np.array([])
-        
-        total_wins = 0
-        total_utility = 0
-        total_spent = 0
-        for t in range(n_auctions):
-            # agent chooses bid
-            bid_t = agent.bid()
-            # get bids from other competitors
-            other_bids_t = envir.round()
-            m_t = other_bids_t.max()
+            envir = envi.StochasticBiddingCompetitors(other_bids, num_competitors)
+            auction = au.SecondPriceAuction(self.ctrs)
+            if self.bidder_type == 'UCB':
+                agent = ag.UCB1BiddingAgent(my_budget, available_bids, n_auctions)
+            elif self.bidder_type == 'pacing':
+                agent = ag.StochasticPacingAgent(my_valuation, my_budget, n_auctions, eta)
+            else:
+                print("Invalid bidder type")
+                exit(1)
 
-            bids = np.append(bid_t, other_bids_t)
-            winner, payments_per_click = auction.round(bids)
-            my_win = (winner == 0)
-            f_t = (my_valuation - m_t) * my_win
-            c_t = m_t * my_win
-            # update agent
-            agent.update(f_t, c_t)
+            my_utilities = np.array([])
+            my_bids = np.array([])
+            my_payments = np.array([])
+            m_ts = np.array([])
 
-            ''' LOGGING '''
-            my_utilities = np.append(my_utilities, f_t)
-            my_bids = np.append(my_bids, bid_t)
-            my_payments = np.append(my_payments, c_t)
-            m_ts = np.append(m_ts, m_t)
+            total_wins = 0
+            total_utility = 0
+            total_spent = 0
+            for t in range(n_auctions):
+                # agent chooses bid
+                bid_t = agent.bid()
+                # get bids from other competitors
+                other_bids_t = envir.round()
+                m_t = other_bids_t.max()
 
-            total_wins += my_win
-            total_utility += f_t
-            total_spent += c_t
+                bids = np.append(bid_t, other_bids_t)
+                winner, payments_per_click = auction.round(bids)
+                my_win = (winner == 0)
+                f_t = (my_valuation - m_t) * my_win
+                c_t = m_t * my_win
+                # update agent
+                agent.update(f_t, c_t)
 
-            print(f"Auction: {t+1}, Bid: {bid_t}, Opponent bid: {m_t}, Utility: {f_t}, Payment: {c_t}, Winner: {winner}")
+                ''' LOGGING '''
+                my_utilities = np.append(my_utilities, f_t)
+                my_bids = np.append(my_bids, bid_t)
+                my_payments = np.append(my_payments, c_t)
+                m_ts = np.append(m_ts, m_t)
 
-        print(f"Total wins: {total_wins}, Total utility: {total_utility}, Total spent: {total_spent}")
+                total_wins += my_win
+                total_utility += f_t
+                total_spent += c_t
 
-        ''' CLAIRVOYANT '''
-        clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_truthful(my_budget, my_valuation, m_ts, n_auctions)
+                print(f"Auction: {t+1}, Bid: {bid_t}, Opponent bid: {m_t}, Utility: {f_t}, Payment: {c_t}, Winner: {winner}")
+
+            print(f"Total wins: {total_wins}, Total utility: {total_utility}, Total spent: {total_spent}")
+
+            ''' CLAIRVOYANT '''
+            clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_truthful(my_budget, my_valuation, m_ts, n_auctions)
+
+            cumulative_regret = np.cumsum(clairvoyant_utilities - my_utilities)
+            regret_per_trial.append(cumulative_regret)
+
+        ''' PLOT REGRET '''
+        regret_per_trial = np.array(regret_per_trial)
+        average_regret = regret_per_trial.mean(axis=0)
+        regret_sd = regret_per_trial.std(axis=0)
+
+        plt.plot(np.arange(self.T_bidding), average_regret, label='Average Regret')
+        plt.title('Cumulative regret of bidder')
+        plt.fill_between(np.arange(self.T_bidding),
+                        average_regret-regret_sd/np.sqrt(self.n_iters),
+                        average_regret+regret_sd/np.sqrt(self.n_iters),
+                        alpha=0.3,
+                        label='Uncertainty')
+        #plt.plot((0,T-1), (average_regret[0], average_regret[-1]), 'ro', linestyle="--")
+        plt.xlabel('$t$')
+        plt.legend()
+        plt.show()
 
         # plot_clayrvoyant_truthful(my_budget, clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments)
 
         ''' AGENT '''
-        plot_agent_bidding(my_budget, my_bids, my_utilities, my_payments)
+        # plot_agent_bidding(my_budget, my_bids, my_utilities, my_payments)
 
         ''' REGRET '''
-        plot_regret(my_utilities, clairvoyant_utilities)
+        # plot_regret(my_utilities, clairvoyant_utilities)
 
     ''' ONLY PRICING '''
     def pricing(self):
@@ -314,26 +335,26 @@ class Requirement1:
         plt.legend()
         plt.show()
 
-        plot_agent_pricing(my_prices, my_sales, my_rewards)
+        # plot_agent_pricing(my_prices, my_sales, my_rewards)
 
         # plot_regret(my_rewards, expected_clairvoyant_rewards)
 
-        # plot_demand_curve(discr_prices, conversion_probability, n_customers)
+        plot_demand_curve(discr_prices, conversion_probability, n_customers)
 
-        # plot_profit_curve(discr_prices, conversion_probability, n_customers, item_cost)
+        plot_profit_curve(discr_prices, conversion_probability, n_customers, item_cost)
         
 
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--num_days", dest="num_days", type=int, default=365)
+    parser.add_argument("--num_days", dest="num_days", type=int, default=30)
     parser.add_argument("--auctions_per_day", dest="auctions_per_day", type=int, default = 10)
-    parser.add_argument("--n_iters", dest="n_iters", type = int, default=100)
+    parser.add_argument("--n_iters", dest="n_iters", type = int, default=10)
     parser.add_argument("--num_competitors", dest="num_competitors", type=int, default=10)
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
     parser.add_argument("--seed", dest="seed", type=int, default=11)
-    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='pricing')
+    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='bidding')
     parser.add_argument("--bidder_type", dest="bidder_type", type=str, choices=['UCB', 'pacing'], default='UCB')
 
     #for pricing only
