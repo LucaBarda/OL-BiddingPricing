@@ -49,11 +49,10 @@ def get_clairvoyant_truthful(budget, my_valuation, m_t, n_auctions):
     return clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments
 
 def plot_clayrvoyant_truthful(budget, clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments):
-    plt.title('Clairvoyant Bids')
+    plt.title('Clairvoyant Chosen Bids')
     plt.plot(clairvoyant_bids)
     plt.xlabel('$t$')
     plt.ylabel('$b_t$')
-    plt.title('Chosen Bids')
     plt.show()
 
     plt.title('Clairvoyant Cumulative Payment')
@@ -76,7 +75,7 @@ def plot_agent_bidding(budget, agent_bids, agent_utilities, agent_payments):
     plt.plot(agent_bids)
     plt.xlabel('$t$')
     plt.ylabel('$b_t$')
-    plt.title('Chosen Bids')
+    plt.title('Agent Chosen Bids')
     plt.show()
 
     plt.title('Agent Cumulative Payment')
