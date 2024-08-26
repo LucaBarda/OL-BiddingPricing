@@ -40,7 +40,7 @@ class Requirement1:
         # a round of pricing for each day
         # discretization step from theory
         eps_pricing = self.T_pricing**(-1/3)
-        K_pricing = int(1/eps_pricing)
+        K_pricing = int(1/eps_pricing + 1)
         if K_pricing % 2 == 0:
             K_pricing += 1 # this ensures K is odd
 
@@ -58,7 +58,7 @@ class Requirement1:
 
         ''' BIDDING SETUP '''
         num_competitors = self.num_competitors
-        my_budget = 1000
+        my_budget = 500
 
         min_bid = 0
         max_bid = 1
@@ -71,7 +71,7 @@ class Requirement1:
         # learning rate from theory
         eta = 1 / np.sqrt(self.T_bidding)
 
-        my_ctr = 0.75
+        my_ctr = 0.7
         self.ctrs[0] = my_ctr
         my_valuation = 0.8
 
@@ -446,13 +446,13 @@ class Requirement1:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--num_days", dest="num_days", type=int, default=90)
-    parser.add_argument("--auctions_per_day", dest="auctions_per_day", type=int, default=50)
+    parser.add_argument("--auctions_per_day", dest="auctions_per_day", type=int, default=30)
     parser.add_argument("--n_iters", dest="n_iters", type = int, default=5)
     parser.add_argument("--num_competitors", dest="num_competitors", type=int, default=10)
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
     parser.add_argument("--seed", dest="seed", type=int, default=1)
-    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='bidding')
-    parser.add_argument("--bidder_type", dest="bidder_type", type=str, choices=['UCB', 'pacing'], default='UCB')
+    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='main')
+    parser.add_argument("--bidder_type", dest="bidder_type", type=str, choices=['UCB', 'pacing'], default='pacing')
 
     #for pricing only
     parser.add_argument("--num_buyers", dest="num_buyers", type = int, default = 100)
