@@ -191,7 +191,7 @@ class Requirement1:
             regret_per_trial_pricing.append(np.cumsum(expected_clairvoyant_rewards - my_rewards))
 
             ''' BIDDING CLAIRVOYANT '''
-            clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_truthful(my_budget, my_valuation, m_ts, self.T_bidding)
+            clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_truthful_stochastic(my_budget, my_valuation, m_ts, self.T_bidding)
 
             regret_per_trial_bidding.append(np.cumsum(clairvoyant_utilities - my_utilities))
         
@@ -308,7 +308,7 @@ class Requirement1:
             bids_per_trial += my_bids.tolist()
 
             ''' CLAIRVOYANT '''
-            clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_truthful(my_budget, my_valuation, m_ts, n_auctions)
+            clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_truthful_stochastic(my_budget, my_valuation, m_ts, n_auctions)
 
             cumulative_regret = np.cumsum(clairvoyant_utilities - my_utilities)
             regret_per_trial.append(cumulative_regret)
@@ -446,13 +446,13 @@ class Requirement1:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--num_days", dest="num_days", type=int, default=90)
-    parser.add_argument("--auctions_per_day", dest="auctions_per_day", type=int, default=30)
+    parser.add_argument("--auctions_per_day", dest="auctions_per_day", type=int, default=20)
     parser.add_argument("--n_iters", dest="n_iters", type = int, default=5)
     parser.add_argument("--num_competitors", dest="num_competitors", type=int, default=10)
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
     parser.add_argument("--seed", dest="seed", type=int, default=1)
-    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='main')
-    parser.add_argument("--bidder_type", dest="bidder_type", type=str, choices=['UCB', 'pacing'], default='pacing')
+    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='bidding')
+    parser.add_argument("--bidder_type", dest="bidder_type", type=str, choices=['UCB', 'pacing'], default='UCB')
 
     #for pricing only
     parser.add_argument("--num_buyers", dest="num_buyers", type = int, default = 100)

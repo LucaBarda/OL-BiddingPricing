@@ -24,8 +24,8 @@ def normalize_zero_one(x, min_x, max_x):
 def denormalize_zero_one(x, min_x, max_x):
     return min_x + (max_x - min_x) * x
 
-def get_clairvoyant_truthful(budget, my_valuation, m_t, n_auctions):
-    # the clairvoyant knows the max bid at each round
+def get_clairvoyant_truthful_stochastic(budget, my_valuation, m_t, n_auctions):
+    # the clairvoyant knows the max bid at each round 
     ## I compute my sequence of utilities at every round
     utility = (my_valuation-m_t)*(my_valuation>=m_t)
     # recall that operations with ndarray produce ndarray
@@ -47,6 +47,42 @@ def get_clairvoyant_truthful(budget, my_valuation, m_t, n_auctions):
         c += m_t[sorted_round_utility[i]]
         i+=1
     return clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments
+
+def get_clairvoyant_non_truthful_adversarial(budget, my_valuation, m_t, n_auctions, discr_bids):
+    # the clairvoyant knows the max bid at each round
+    
+    utilities = np.zeros(len(discr_bids))
+    for bid_idx, bid in enumerate(discr_bids):
+        c = 0 # total money spent
+        for auction_idx in range(n_auctions):
+            if c <= budget-1:
+                bid_utility += (my_valuation-bid)*(bid>=m_t[auction_idx])
+                c += bid*(bid>=m_t[auction_idx])
+            else:
+                break
+        utilities[bid_idx] = bid_utility
+    # recall that operations with ndarray produce ndarray
+
+    bid_opt_idx = np.argmax(utilities)
+    bid_opt = discr_bids[bid_opt_idx]
+
+    clairvoyant_utilities = np.zeros(n_auctions)
+    clairvoyant_bids= np.zeros(n_auctions)
+    clairvoyant_payments = np.zeros(n_auctions)
+    c = 0 # total money spent
+    for auction_idx in range(n_auctions):
+        if c <= budget-1:
+            clairvoyant_bids[auction_idx] = bid_opt
+            clairvoyant_utilities[auction_idx] = (my_valuation-bid_opt)*(bid_opt>=m_t[auction_idx])
+            clairvoyant_payments[auction_idx] = bid_opt*(m_t[auction_idx] >= bid_opt)
+            c += clairvoyant_payments[auction_idx]
+        else:
+            clairvoyant_bids[auction_idx] = 0
+            clairvoyant_payments[auction_idx] = 0
+            clairvoyant_utilities[auction_idx] = 0
+
+    return clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments
+
 
 def plot_clayrvoyant_truthful(budget, clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments):
     plt.title('Clairvoyant Chosen Bids')

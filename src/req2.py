@@ -33,61 +33,86 @@ class Requirement:
         if self.ctrs is not None:
             self.ctrs_from_args = True
             assert len(self.ctrs) == self.num_competitors+1, "Number of CTRs must match number of bidders"
+        if self.my_ctr is not None:
+            self.ctrs[0] = self.my_ctr
 
         self.T_bidding = np.sum(self.auctions_per_day)
 
     def main(self):
         # report = PDFReport("prova.pdf", self.requirement)
- 
+        ''' PRICING SETUP '''
         item_cost = 0.1
         min_price = 0
         max_price = 1
 
         # a round of pricing for each day
         T_pricing = self.num_days
-        eps = T_pricing ** (-1 / 3)
-        K = int(1/eps + 1)
+        eps_pricing = T_pricing ** (-1 / 3)
+        K_pricing = int(1/eps_pricing + 1)
+        if K_pricing % 2 == 0:
+            K_pricing += 1 # this ensures K is odd
+        
+        discr_prices = np.linspace(min_price, max_price, K_pricing)
+        # parametric conversion probability        
+        conversion_probability = lambda p, theta: (1 - p) ** theta
 
+        eta_pricing = np.sqrt(np.log(K_pricing) / T_pricing)
+
+        ''' BIDDING SETUP '''
         num_competitors = self.num_competitors
         budget = self.budget
 
+        # discretization step from theory
+        T_bidding = self.T_bidding
+        eps_bidding = T_bidding ** (-1 / 3)
+        K_bidding = int(1/eps_bidding + 1)
+
         min_bid = 0
-        max_bid = 0.9
-        available_bids = np.linspace(min_bid, max_bid, K)
+        max_bid = 1
+        available_bids = np.linspace(min_bid, max_bid, K_bidding)
+    
+        eta_bidding = 1 / np.sqrt(T_bidding)
+        my_valuation = self.my_valuation
 
-        T_bidding = np.sum(self.auctions_per_day)       
-        eta = 1 / np.sqrt(T_bidding)
-        my_valuation = 0.9
-
+        regret_per_trial_pricing = []
+        regret_per_trial_bidding = []
         for seed in range(self.n_iters):
-            discr_prices = np.linspace(min_price, max_price, K)
-            learning_rate = np.sqrt(np.log(K) / T_pricing)
-            pricing_agent = ag.HedgeAgent(K, learning_rate)
-
-            # parametric conversion probability        
-            conversion_probability = lambda p, theta: (1 - p) ** theta
+            np.random.seed(seed)
+            
+            ''' PRICING AGENT AND ENVIRONMENT SETUP'''
+            pricing_agent = ag.HedgeAgent(K_pricing, eta_pricing)
+            
             theta_seq = generate_adv_sequence(T_pricing, 0.5, 2)
             pricing_envir = envi.AdversarialPricingFullEnvironment(conversion_probability, theta_seq, item_cost)
 
-            np.random.seed(seed)
-            random.seed(seed)
+            ''' BIDDING AGENT AND ENVIRONMENT SETUP'''
             if not self.ctrs_from_args:
-                self.ctrs = np.random.uniform(0.4, 0.9, self.num_competitors+1)
+                self.ctrs = np.random.uniform(0.4, 0.9, num_competitors+1)
+            if self.my_ctr is not None:
+                self.ctrs[0] = self.my_ctr
+
             my_ctr = self.ctrs[0]
 
             other_bids = np.random.uniform(0.4, 0.7, size=(num_competitors, T_bidding))
-            bidding_agent = ag.AdversarialPacingAgent(available_bids, my_valuation, budget, T_bidding, eta)
             bidding_envir = envi.AdversarialBiddingCompetitors(other_bids, num_competitors, T_bidding)
+            bidding_agent = ag.AdversarialPacingAgent(available_bids, my_valuation, budget, T_bidding, eta_bidding)
             auction = au.FirstPriceAuction(self.ctrs)
 
+            ''' LOGGING PRICING '''
             my_prices = np.array([])
             my_sales = np.array([])
             my_rewards = np.array([])
             total_sales = 0
             total_profit = 0
+
+            ''' LOGGING BIDDING '''
             total_wins = 0
             total_utility = 0
-            total_spent = 0            
+            total_spent = 0
+            m_ts = np.array([])
+            my_utilities = np.array([])
+            total_clicks = 0
+
             for t in range(self.num_days):
                 ### Pricing phase: setting the price
                 arm_t = pricing_agent.pull_arm()
@@ -110,41 +135,63 @@ class Requirement:
                         my_win = 1
                         day_wins += 1
 
-                        user_clicked = np.random.binomial(1, self.ctrs[0])
+                        user_clicked = np.random.binomial(1, my_ctr)
                         n_clicks += user_clicked
 
                     # utility and cost for the bidding agent are computed in expectation                
-                    f_t = (my_valuation - my_ctr * payment_per_click) * my_win
-                    c_t = my_ctr * payment_per_click * my_win
+                    f_t = (my_valuation - payment_per_click) * my_win
+                    c_t = payment_per_click * my_win
                     bidding_agent.update(f_t, c_t, m_t)
 
                     total_utility += f_t
                     total_spent += c_t
 
+                    ''' LOGGING BIDDING '''
+                    my_utilities = np.append(my_utilities, f_t)
+                    my_bids = np.append(my_bids, bid_t)
+                    my_payments = np.append(my_payments, c_t)
+                    m_ts = np.append(m_ts, m_t)
+
                 ### Pricing phase: updating the price
                 # get full feedback from environment
                 d_t, r_t = pricing_envir.round(discr_prices, n_clicks)
                 # compute losses with normalized reward
-                losses_t = 1 - r_t/n_clicks if n_clicks > 0 else np.ones(K)
-                # update pricing agent
+                losses_t = 1 - r_t/n_clicks if n_clicks > 0 else np.ones(K_pricing)
+                # update pricing agent with full feedback
                 pricing_agent.update(losses_t)
 
                 # update sales and profit on the played price
                 day_sales = d_t[arm_t]
                 day_profit = r_t[arm_t]
 
-                total_wins += day_wins
+                ''' LOGGING PRICING '''
                 total_sales += day_sales
                 total_profit += day_profit
-                ''' LOGGING '''
-                my_prices = np.append(my_prices, price_t)
-                my_sales = np.append(my_sales, d_t[0])
-                my_rewards = np.append(my_rewards, r_t[0])                
 
+                my_prices = np.append(my_prices, price_t)
+                my_sales = np.append(my_sales, day_sales)
+                my_rewards = np.append(my_rewards, day_profit)                
+
+                ''' LOGGING BIDDING '''
+                total_wins += day_wins
+                total_clicks += n_clicks
 
                 # print(f"Day {t+1}: Price: {price_t}, Day wins: {day_wins}, N.clicks: {n_clicks}, Day Sales: {day_sales}, Day Profit: {day_profit}")
 
             print(f"Total wins: {total_wins}, Total utility: {total_utility}, Total spent: {total_spent}, Total sales: {total_sales}, Total profit: {total_profit}")
+            
+            ''' PRICING CLAIRVOYANT '''
+            expected_profit_curve = total_clicks/self.num_days * conversion_probability(discr_prices) * (discr_prices-item_cost)
+            best_price_index = np.argmax(expected_profit_curve)
+
+            expected_clairvoyant_rewards = np.repeat(np.ceil(expected_profit_curve[best_price_index]), self.num_days)
+
+            regret_per_trial_pricing.append(np.cumsum(expected_clairvoyant_rewards - my_rewards))
+
+            ''' BIDDING CLAIRVOYANT '''
+            clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_non_truthful_adversarial(budget, my_valuation, m_ts, self.T_bidding, available_bids)
+
+            regret_per_trial_bidding.append(np.cumsum(clairvoyant_utilities - my_utilities))
 
     def bidding(self):
         num_competitors = self.num_competitors
@@ -278,6 +325,8 @@ if __name__ == '__main__':
     parser.add_argument("--n_iters", dest="n_iters", type = int, default=100)
     parser.add_argument("--num_competitors", dest="num_competitors", type=int, default=10)
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
+    parser.add_argument("--my_ctr", dest = "my_ctr", type=float, default = None)
+    parser.add_argument("--my_valuation", dest = "my_valuation", type=float, default = 0.8)
     parser.add_argument("--seed", dest="seed", type=int, default=1)
     parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='main')
 
