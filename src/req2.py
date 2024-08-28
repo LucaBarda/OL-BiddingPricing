@@ -33,6 +33,8 @@ class Requirement:
         if self.ctrs is not None:
             self.ctrs_from_args = True
             assert len(self.ctrs) == self.num_competitors+1, "Number of CTRs must match number of bidders"
+        else:
+            self.ctrs = np.random.uniform(0.4, 0.9, self.num_competitors+1)
         if self.my_ctr is not None:
             self.ctrs[0] = self.my_ctr
 
@@ -68,7 +70,7 @@ class Requirement:
         K_bidding = int(1/eps_bidding + 1)
 
         min_bid = 0
-        max_bid = 1
+        max_bid = self.my_valuation - 0.001
         available_bids = np.linspace(min_bid, max_bid, K_bidding)
     
         eta_bidding = 1 / np.sqrt(T_bidding)
@@ -111,6 +113,8 @@ class Requirement:
             total_spent = 0
             m_ts = np.array([])
             my_utilities = np.array([])
+            my_bids = np.array([])
+            my_payments = np.array([])
             total_clicks = 0
 
             for t in range(self.num_days):
@@ -138,7 +142,7 @@ class Requirement:
                         user_clicked = np.random.binomial(1, my_ctr)
                         n_clicks += user_clicked
 
-                    # utility and cost for the bidding agent are computed in expectation                
+                                 
                     f_t = (my_valuation - payment_per_click) * my_win
                     c_t = payment_per_click * my_win
                     bidding_agent.update(f_t, c_t, m_t)
@@ -178,13 +182,11 @@ class Requirement:
 
                 # print(f"Day {t+1}: Price: {price_t}, Day wins: {day_wins}, N.clicks: {n_clicks}, Day Sales: {day_sales}, Day Profit: {day_profit}")
 
-            print(f"Total wins: {total_wins}, Total utility: {total_utility}, Total spent: {total_spent}, Total sales: {total_sales}, Total profit: {total_profit}")
+            print(f"Total wins: {total_wins:.2f}, Total utility: {total_utility:.2f}, Total spent: {total_spent:.2f}, Total sales: {total_sales:.2f}, Total profit: {total_profit:.2f}")
+
             
             ''' PRICING CLAIRVOYANT '''
-            expected_profit_curve = total_clicks/self.num_days * conversion_probability(discr_prices) * (discr_prices-item_cost)
-            best_price_index = np.argmax(expected_profit_curve)
-
-            expected_clairvoyant_rewards = np.repeat(np.ceil(expected_profit_curve[best_price_index]), self.num_days)
+            expected_clairvoyant_rewards, _ = get_clairvoyant_pricing_adversarial(my_prices, my_rewards, discr_prices, T_pricing)
 
             regret_per_trial_pricing.append(np.cumsum(expected_clairvoyant_rewards - my_rewards))
 
@@ -192,6 +194,40 @@ class Requirement:
             clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_non_truthful_adversarial(budget, my_valuation, m_ts, self.T_bidding, available_bids)
 
             regret_per_trial_bidding.append(np.cumsum(clairvoyant_utilities - my_utilities))
+        
+        '''PLOT REGRET PRICING'''
+        regret_per_trial_pricing = np.array(regret_per_trial_pricing)
+        average_regret_pricing = regret_per_trial_pricing.mean(axis=0)
+        regret_sd_pricing = regret_per_trial_pricing.std(axis=0)
+
+        plt.plot(np.arange(self.num_days), average_regret_pricing, label='Average Regret Pricing')
+        plt.title('Cumulative regret of pricing')
+        plt.fill_between(np.arange(self.num_days),
+                        average_regret_pricing-regret_sd_pricing/np.sqrt(self.n_iters),
+                        average_regret_pricing+regret_sd_pricing/np.sqrt(self.n_iters),
+                        alpha=0.3,
+                        label='Uncertainty')
+        #plt.plot((0,T-1), (average_regret_pricing[0], average_regret_pricing[-1]), 'ro', linestyle="--")
+        plt.xlabel('$t$')
+        plt.legend()
+        plt.savefig('pricing_regret.png')
+
+        ''' PLOT REGRET BIDDING '''
+        regret_per_trial_bidding = np.array(regret_per_trial_bidding)
+        average_regret_bidding = regret_per_trial_bidding.mean(axis=0)
+        regret_sd_bidding = regret_per_trial_bidding.std(axis=0)
+
+        plt.plot(np.arange(self.T_bidding), average_regret_bidding, label='Average Regret Bidding')
+        plt.title('Cumulative regret of bidding')
+        plt.fill_between(np.arange(self.T_bidding),
+                        average_regret_bidding-regret_sd_bidding/np.sqrt(self.n_iters),
+                        average_regret_bidding+regret_sd_bidding/np.sqrt(self.n_iters),
+                        alpha=0.3,
+                        label='Uncertainty')
+        #plt.plot((0,T-1), (average_regret_bidding[0], average_regret_bidding[-1]), 'ro', linestyle="--")
+        plt.xlabel('$t$')
+        plt.legend()
+        plt.savefig('bidding_regret.png')
 
     def bidding(self):
         num_competitors = self.num_competitors
@@ -275,7 +311,10 @@ class Requirement:
         discr_prices = np.linspace(min_price, max_price, K)
 
         learning_rate = np.sqrt(np.log(K) / self.T_pricing)
+        eta = np.sqrt(np.log(K) / self.T_pricing)
+        T = self.T_pricing
 
+        regret_per_trial = []
         for seed in range(self.n_iters):
             np.random.seed(seed)
             random.seed(seed)
@@ -287,8 +326,12 @@ class Requirement:
             theta_seq = generate_adv_sequence(self.T_pricing, 0.5, 2)
             envir = envi.AdversarialPricingFullEnvironment(conversion_probability, theta_seq, item_cost)
 
-            # demand = conversion_probability * num_buyers
-            # reward_func = lambda price, demand: demand * (price - item_cost)
+            ''' LOGGING PRICING '''
+            my_prices = np.array([])
+            my_sales = np.array([])
+            my_rewards = np.array([])
+            total_sales = 0
+            total_profit = 0
 
             total_sales = 0
             total_profit = 0
@@ -310,13 +353,48 @@ class Requirement:
 
                 #update agent with full feedback
                 agent.update(losses_t)
+                day_sales = d_t[arm_t]
+                day_profit = r_t[arm_t]
+                print(day_profit)
+
+                ''' LOGGING PRICING '''
+                total_sales += day_sales
+                total_profit += day_profit
+
+                my_prices = np.append(my_prices, price_t)
+                my_sales = np.append(my_sales, day_sales)
+                my_rewards = np.append(my_rewards, day_profit)                     
 
                 # print(f"Day {t+1}: Price: {price_t:.2f}, Losses: {np.round(losses_t, 2)}, Theta: {np.round(theta_seq[t], 2)}, Demand: {np.round(d_t, 2)}, Profit: {np.round(r_t, 2)}")
             
             print(f"Total Sales: {total_sales:.2f}, Total Profit: {total_profit:.2f}")
 
+            ''' PRICING CLAIRVOYANT '''
+            expected_clairvoyant_rewards, _ = get_clairvoyant_pricing_adversarial(my_prices, my_rewards, discr_prices, T, envir, num_buyers)
+            print(f"My prices: {my_prices}")
+            print(f"My rewards: {my_rewards}")
+            print(f"Expected clairvoyant rewards: {expected_clairvoyant_rewards}")
+            regret_per_trial.append(np.cumsum(expected_clairvoyant_rewards - my_rewards))
             
+        regret_per_trial = np.array(regret_per_trial)
+        average_regret = regret_per_trial.mean(axis=0)
+        regret_sd = regret_per_trial.std(axis=0)            
+        plt.plot(np.arange(self.T_pricing), average_regret, label='Average Regret')
+        plt.title('Cumulative regret of GPUCB')
+        plt.fill_between(np.arange(self.T_pricing),
+                        average_regret-regret_sd/np.sqrt(self.n_iters),
+                        average_regret+regret_sd/np.sqrt(self.n_iters),
+                        alpha=0.3,
+                        label='Uncertainty')
+        #plt.plot((0,T-1), (average_regret[0], average_regret[-1]), 'ro', linestyle="--")
+        plt.xlabel('$t$')
+        plt.legend()
+        plt.savefig('just_pricing_regret.png')
 
+        # plot_demand_curve(discr_prices, conversion_probability, num_buyers)
+
+        # plot_profit_curve(discr_prices, conversion_probability, num_buyers, item_cost)
+    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--num_days", dest="num_days", type=int, default=365)

@@ -19,3 +19,6 @@ class AdversarialPricingFullEnvironment(Environment):
         self.t += 1
         return d_t, r_t
     
+    def reset(self):
+        self.t = 0
+    

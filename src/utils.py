@@ -52,36 +52,55 @@ def get_clairvoyant_non_truthful_adversarial(budget, my_valuation, m_t, n_auctio
     # the clairvoyant knows the max bid at each round
     
     utilities = np.zeros(len(discr_bids))
+    clairvoyant_utilities = np.zeros(n_auctions)
+    clairvoyant_bids= np.zeros(n_auctions)
+    clairvoyant_payments = np.zeros(n_auctions)
+
     for bid_idx, bid in enumerate(discr_bids):
         c = 0 # total money spent
+        bid_utility = 0
         for auction_idx in range(n_auctions):
             if c <= budget-1:
                 bid_utility += (my_valuation-bid)*(bid>=m_t[auction_idx])
                 c += bid*(bid>=m_t[auction_idx])
+
+                clairvoyant_bids[auction_idx] = bid
+                clairvoyant_utilities[auction_idx] = (my_valuation-bid)*(bid>=m_t[auction_idx])
+                clairvoyant_payments[auction_idx] = bid*(m_t[auction_idx] >= bid)
             else:
+                clairvoyant_bids[auction_idx] = 0
+                clairvoyant_payments[auction_idx] = 0
+                clairvoyant_utilities[auction_idx] = 0
                 break
         utilities[bid_idx] = bid_utility
-    # recall that operations with ndarray produce ndarray
 
-    bid_opt_idx = np.argmax(utilities)
-    bid_opt = discr_bids[bid_opt_idx]
-
-    clairvoyant_utilities = np.zeros(n_auctions)
-    clairvoyant_bids= np.zeros(n_auctions)
-    clairvoyant_payments = np.zeros(n_auctions)
-    c = 0 # total money spent
-    for auction_idx in range(n_auctions):
-        if c <= budget-1:
-            clairvoyant_bids[auction_idx] = bid_opt
-            clairvoyant_utilities[auction_idx] = (my_valuation-bid_opt)*(bid_opt>=m_t[auction_idx])
-            clairvoyant_payments[auction_idx] = bid_opt*(m_t[auction_idx] >= bid_opt)
-            c += clairvoyant_payments[auction_idx]
-        else:
-            clairvoyant_bids[auction_idx] = 0
-            clairvoyant_payments[auction_idx] = 0
-            clairvoyant_utilities[auction_idx] = 0
 
     return clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments
+
+def get_clairvoyant_pricing_adversarial(my_prices, my_rewards, discr_prices, T_pricing, adv_pricing_agent, num_buyers):
+    max_reward = -np.inf
+    best_price = None
+    best_price_idx = None
+
+    for price_idx, price in enumerate(discr_prices):
+        indices = np.where(my_prices == price)
+        total_reward = np.sum(my_rewards[indices])
+        if total_reward > max_reward:
+            max_reward = total_reward
+            best_price = price
+            best_price_idx = price_idx
+    
+    #now get the rewards for the best price with each theta_t
+    rewards_clairvoyant = np.zeros(T_pricing)
+    adv_pricing_agent.reset() #resets counter to t = 0
+    for t in range(T_pricing):
+        _, r_t = adv_pricing_agent.round(np.array([best_price]), num_buyers)
+        rewards_clairvoyant[t] = r_t
+
+    
+    return rewards_clairvoyant, best_price
+
+
 
 
 def plot_clayrvoyant_truthful(budget, clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments):
