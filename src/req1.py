@@ -58,7 +58,7 @@ class Requirement1:
 
         ''' BIDDING SETUP '''
         num_competitors = self.num_competitors
-        my_budget = 500
+        my_budget = self.budget
 
         min_bid = 0
         max_bid = 1
@@ -176,7 +176,7 @@ class Requirement1:
                 total_profit += day_profit
                 total_clicks += n_clicks
 
-                print(f"Day {t+1}: Price: {price_t}, Day wins: {day_wins}, N.clicks: {n_clicks}, Day Sales: {day_sales}, Day Profit: {day_profit}")
+                # print(f"Day {t+1}: Price: {price_t}, Day wins: {day_wins}, N.clicks: {n_clicks}, Day Sales: {day_sales}, Day Profit: {day_profit}")
 
             print(f"Total wins: {total_wins}, Total utility: {total_utility}, Total spent: {total_spent}, Total sales: {total_sales}, Total profit: {total_profit}")
 
@@ -234,7 +234,7 @@ class Requirement1:
     def bidding(self):
 
         num_competitors = self.num_competitors
-        my_budget = 100
+        my_budget = self.budget
         # in this case we are just considering bidding so no need to separate for the different days.
         n_auctions = self.T_bidding
         # discretization step from theory
@@ -301,7 +301,7 @@ class Requirement1:
                 total_utility += f_t
                 total_spent += c_t
 
-                print(f"Auction: {t+1}, Bid: {bid_t}, Opponent bid: {m_t}, Utility: {f_t}, Payment: {c_t}, Winner: {winner}")
+                # print(f"Auction: {t+1}, Bid: {bid_t}, Opponent bid: {m_t}, Utility: {f_t}, Payment: {c_t}, Winner: {winner}")
 
             print(f"Total wins: {total_wins}, Total utility: {total_utility}, Total spent: {total_spent}")
             ''' LOGGING BIDS '''
@@ -411,7 +411,7 @@ class Requirement1:
                 total_sales += d_t
                 total_profit += r_t
 
-                print(f"Day {t+1}: Price: {price_t}, Demand: {d_t}, Reward: {r_t}")
+                # print(f"Day {t+1}: Price: {price_t}, Demand: {d_t}, Reward: {r_t}")
 
             print(f"Total Sales: {total_sales}, Total Profit: {total_profit}")
 
@@ -451,8 +451,9 @@ if __name__ == '__main__':
     parser.add_argument("--num_competitors", dest="num_competitors", type=int, default=10)
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
     parser.add_argument("--seed", dest="seed", type=int, default=1)
-    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='bidding')
-    parser.add_argument("--bidder_type", dest="bidder_type", type=str, choices=['UCB', 'pacing'], default='UCB')
+    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='main')
+    parser.add_argument("--bidder_type", dest="bidder_type", type=str, choices=['UCB', 'pacing'], default='pacing')
+    parser.add_argument("--budget", dest="budget", type=int, default=200)
 
     #for pricing only
     parser.add_argument("--num_buyers", dest="num_buyers", type = int, default = 100)
