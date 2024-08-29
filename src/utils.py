@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import numpy as np
+import copy
 """ from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -48,33 +49,46 @@ def get_clairvoyant_truthful_stochastic(budget, my_valuation, m_t, n_auctions):
         i+=1
     return clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments
 
-def get_clairvoyant_non_truthful_adversarial(budget, my_valuation, m_t, n_auctions, discr_bids):
+def get_clairvoyant_non_truthful_adversarial(budget, my_valuation, m_t, n_auctions, discr_bids, all_bids, auction_agent = None):
     # the clairvoyant knows the max bid at each round
     
-    utilities = np.zeros(len(discr_bids))
     clairvoyant_utilities = np.zeros(n_auctions)
     clairvoyant_bids= np.zeros(n_auctions)
     clairvoyant_payments = np.zeros(n_auctions)
 
+    temp_utilities = np.zeros(n_auctions)
+    temp_bids= np.zeros(n_auctions)
+    temp_payments = np.zeros(n_auctions)    
+
+    max_utility = -np.inf
+    best_bid_idx = None
     for bid_idx, bid in enumerate(discr_bids):
         c = 0 # total money spent
         bid_utility = 0
         for auction_idx in range(n_auctions):
             if c <= budget-1:
-                bid_utility += (my_valuation-bid)*(bid>=m_t[auction_idx])
+                winner, _ = auction_agent.get_winners(all_bids[:, auction_idx])
+                bid_utility += (my_valuation-bid)*(winner == 0)
                 c += bid*(bid>=m_t[auction_idx])
 
-                clairvoyant_bids[auction_idx] = bid
-                clairvoyant_utilities[auction_idx] = (my_valuation-bid)*(bid>=m_t[auction_idx])
-                clairvoyant_payments[auction_idx] = bid*(m_t[auction_idx] >= bid)
+                temp_bids[auction_idx] = bid
+                temp_utilities[auction_idx] = (my_valuation-bid)*(winner == 0)
+                temp_payments[auction_idx] = bid*(winner == 0)
             else:
-                clairvoyant_bids[auction_idx] = 0
-                clairvoyant_payments[auction_idx] = 0
-                clairvoyant_utilities[auction_idx] = 0
+                temp_bids[auction_idx] = 0
+                temp_payments[auction_idx] = 0
+                temp_utilities[auction_idx] = 0
                 break
-        utilities[bid_idx] = bid_utility
+        if bid_utility > max_utility: 
+            max_utility = copy.deepcopy(bid_utility)
+            best_bid_idx = bid_idx
+            clairvoyant_utilities = copy.deepcopy(temp_utilities)
+            clairvoyant_bids = np.copy(temp_bids)
+            clairvoyant_payments = np.copy(temp_payments)
+                
+        # best_bid = discr_bids[best_bid_idx]
 
-
+    
     return clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments
 
 def get_clairvoyant_pricing_adversarial(my_prices, my_rewards, discr_prices, T_pricing, adv_pricing_agent, num_buyers):
@@ -93,9 +107,18 @@ def get_clairvoyant_pricing_adversarial(my_prices, my_rewards, discr_prices, T_p
     #now get the rewards for the best price with each theta_t
     rewards_clairvoyant = np.zeros(T_pricing)
     adv_pricing_agent.reset() #resets counter to t = 0
-    for t in range(T_pricing):
-        _, r_t = adv_pricing_agent.round(np.array([best_price]), num_buyers)
-        rewards_clairvoyant[t] = r_t
+
+    #if num_buyers is an integer, I assume that the number of buyers is the same at each round
+    if isinstance(num_buyers, int):
+        for t in range(T_pricing):
+            _, r_t = adv_pricing_agent.round(np.array([best_price]), num_buyers)
+            rewards_clairvoyant[t] = r_t
+    elif isinstance(num_buyers, np.ndarray):
+        for t in range(T_pricing):
+            _, r_t = adv_pricing_agent.round(np.array([best_price]), num_buyers[t])
+            rewards_clairvoyant[t] = r_t
+    else:
+        raise ValueError('num_buyers must be an integer or a numpy array')
 
     
     return rewards_clairvoyant, best_price
