@@ -26,15 +26,12 @@ class Requirement:
 
         self.competitors_per_day = [100 for _ in range(self.num_days)]
 
-        # if self.ctrs is None:
-        #     self.ctrs = np.random.uniform(0.4, 0.9, self.num_competitors+1)
-        # else:
         self.ctrs_from_args = False
         if self.ctrs is not None:
             self.ctrs_from_args = True
             assert len(self.ctrs) == self.num_competitors+1, "Number of CTRs must match number of bidders"
         else:
-            self.ctrs = np.random.uniform(0.4, 0.9, self.num_competitors+1)
+            self.ctrs = np.random.uniform(0.2, 0.8, self.num_competitors+1)
         if self.my_ctr is not None:
             self.ctrs[0] = self.my_ctr
 
@@ -53,26 +50,21 @@ class Requirement:
         K_pricing = int(1/eps_pricing + 1)
         if K_pricing % 2 == 0:
             K_pricing += 1 # this ensures K is odd
-        
         discr_prices = np.linspace(min_price, max_price, K_pricing)
         # parametric conversion probability        
         conversion_probability = lambda p, theta: (1 - p) ** theta
-
         eta_pricing = np.sqrt(np.log(K_pricing) / T_pricing)
 
         ''' BIDDING SETUP '''
         num_competitors = self.num_competitors
         budget = self.budget
-
         # discretization step from theory
         T_bidding = self.T_bidding
         eps_bidding = T_bidding ** (-1 / 3)
         K_bidding = int(1/eps_bidding + 1)
-
         min_bid = 0
         max_bid = self.my_valuation - 0.001
         available_bids = np.linspace(min_bid, max_bid, K_bidding)
-    
         eta_bidding = 1 / np.sqrt(T_bidding)
         my_valuation = self.my_valuation
 
@@ -104,6 +96,7 @@ class Requirement:
             my_prices = np.array([])
             my_sales = np.array([])
             my_rewards = np.array([])
+            num_buyers = np.array([])
             total_sales = 0
             total_profit = 0
 
@@ -111,12 +104,14 @@ class Requirement:
             total_wins = 0
             total_utility = 0
             total_spent = 0
+            all_bids = np.ndarray((num_competitors+1, self.T_bidding))
             m_ts = np.array([])
             my_utilities = np.array([])
             my_bids = np.array([])
             my_payments = np.array([])
             total_clicks = 0
 
+            tot_auctions_counter = 0
             for t in range(self.num_days):
                 ### Pricing phase: setting the price
                 arm_t = pricing_agent.pull_arm()
@@ -151,10 +146,12 @@ class Requirement:
                     total_spent += c_t
 
                     ''' LOGGING BIDDING '''
+                    all_bids[:, tot_auctions_counter] = bids
                     my_utilities = np.append(my_utilities, f_t)
                     my_bids = np.append(my_bids, bid_t)
                     my_payments = np.append(my_payments, c_t)
                     m_ts = np.append(m_ts, m_t)
+                    tot_auctions_counter += 1
 
                 ### Pricing phase: updating the price
                 # get full feedback from environment
@@ -174,7 +171,8 @@ class Requirement:
 
                 my_prices = np.append(my_prices, price_t)
                 my_sales = np.append(my_sales, day_sales)
-                my_rewards = np.append(my_rewards, day_profit)                
+                my_rewards = np.append(my_rewards, day_profit)  
+                num_buyers = np.append(num_buyers, n_clicks)              
 
                 ''' LOGGING BIDDING '''
                 total_wins += day_wins
@@ -186,12 +184,12 @@ class Requirement:
 
             
             ''' PRICING CLAIRVOYANT '''
-            expected_clairvoyant_rewards, _ = get_clairvoyant_pricing_adversarial(my_prices, my_rewards, discr_prices, T_pricing)
+            expected_clairvoyant_rewards, _ = get_clairvoyant_pricing_adversarial(my_prices, my_rewards, discr_prices, T_pricing, pricing_envir, num_buyers)
 
             regret_per_trial_pricing.append(np.cumsum(expected_clairvoyant_rewards - my_rewards))
 
             ''' BIDDING CLAIRVOYANT '''
-            clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_non_truthful_adversarial(budget, my_valuation, m_ts, self.T_bidding, available_bids)
+            clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_non_truthful_adversarial(budget, my_valuation, m_ts, self.T_bidding, available_bids, all_bids, auction_agent=auction)
 
             regret_per_trial_bidding.append(np.cumsum(clairvoyant_utilities - my_utilities))
         
@@ -217,6 +215,7 @@ class Requirement:
         average_regret_bidding = regret_per_trial_bidding.mean(axis=0)
         regret_sd_bidding = regret_per_trial_bidding.std(axis=0)
 
+        plt.figure()
         plt.plot(np.arange(self.T_bidding), average_regret_bidding, label='Average Regret Bidding')
         plt.title('Cumulative regret of bidding')
         plt.fill_between(np.arange(self.T_bidding),
@@ -239,7 +238,7 @@ class Requirement:
         K = int(1/eps + 1)
 
         min_bid = 0
-        max_bid = 0.9
+        max_bid = self.my_valuation - 0.001
         available_bids = np.linspace(min_bid, max_bid, K)
 
         # in this case we are just considering bidding so no need to separate for the different days.
@@ -248,31 +247,39 @@ class Requirement:
         # learning rate from theory
         eta = 1/np.sqrt(n_auctions)
         
-        my_valuation = 0.9
         
         #In this case we are just considering bidding so no need to separete for the different days.
         total_auctions = sum(self.auctions_per_day)
 
+        regret_per_trial_bidding = []
         for seed in range(self.n_iters):
             np.random.seed(seed)
             random.seed(seed)
+
             if not self.ctrs_from_args:
-                self.ctrs = np.random.uniform(0.4, 0.9, self.num_competitors+1)
+                self.ctrs = np.random.uniform(0.2, 0.8, num_competitors+1)
+            if self.my_ctr is not None:
+                self.ctrs[0] = self.my_ctr
             my_ctr = self.ctrs[0]
-            other_bids = np.random.uniform(0.4, 0.6, size=(num_competitors, total_auctions))
+            other_bids = np.random.uniform(0.2, 0.8, size=(num_competitors, total_auctions))
             # matrix of bids for each competitor in each auction
 
-            agent = ag.AdversarialPacingAgent(available_bids, my_valuation, budget, total_auctions, eta)
+            agent = ag.AdversarialPacingAgent(available_bids, self.my_valuation, budget, total_auctions, eta)
             envir = envi.AdversarialBiddingCompetitors(other_bids, num_competitors, total_auctions)
             auction = au.FirstPriceAuction(self.ctrs)
 
-            utilities = np.array([])
-            my_bids = np.array([])
-            my_payments = np.array([])
-
+            ''' LOGGING BIDDING '''
             total_wins = 0
             total_utility = 0
             total_spent = 0
+            all_bids = np.ndarray((num_competitors+1, total_auctions))
+            m_ts = np.array([])
+            my_utilities = np.array([])
+            my_bids = np.array([])
+            my_payments = np.array([])
+            total_clicks = 0
+
+
             for t in range(total_auctions):
                 # agent chooses bid
                 bid_t = agent.bid()
@@ -285,10 +292,18 @@ class Requirement:
                 winner, payments_per_click = auction.round(bids)
                 my_win = (winner == 0)
 
-                f_t = (my_valuation - bid_t) * my_win
+                f_t = (self.my_valuation - bid_t) * my_win
                 c_t = bid_t * my_win
                 # update agent with full feedback (m_t)
                 agent.update(f_t, c_t, m_t)
+
+
+                ''' LOGGING BIDDING '''
+                all_bids[:, t] = bids
+                my_utilities = np.append(my_utilities, f_t)
+                my_bids = np.append(my_bids, bid_t)
+                my_payments = np.append(my_payments, c_t)
+                m_ts = np.append(m_ts, m_t)
 
                 total_wins += my_win
                 total_utility += f_t
@@ -297,6 +312,41 @@ class Requirement:
                 # print(f"Auction {t+1}: Bid: {bid_t:.2f}, Opponent bid {m_t:.2f}, Utility: {f_t:.2f}, Payment: {c_t:.2f}, Winner: {winner}")
             
             print(f"Total wins: {total_wins:.2f}, Total utility: {total_utility:.2f}, Total spent: {total_spent:.2f}")
+
+
+            ''' BIDDING CLAIRVOYANT '''
+            clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_non_truthful_adversarial(budget, self.my_valuation, m_ts, self.T_bidding, available_bids, all_bids, auction_agent=auction)
+
+            regret_per_trial_bidding.append(np.cumsum(clairvoyant_utilities - my_utilities))
+
+        ''' PLOT REGRET BIDDING '''
+        regret_per_trial_bidding = np.array(regret_per_trial_bidding)
+        average_regret_bidding = regret_per_trial_bidding.mean(axis=0)
+        regret_sd_bidding = regret_per_trial_bidding.std(axis=0)
+
+        plt.plot(np.arange(self.T_bidding), average_regret_bidding, label='Average Regret Bidding')
+        plt.title('Cumulative regret of bidding')
+        plt.fill_between(np.arange(self.T_bidding),
+                        average_regret_bidding-regret_sd_bidding/np.sqrt(self.n_iters),
+                        average_regret_bidding+regret_sd_bidding/np.sqrt(self.n_iters),
+                        alpha=0.3,
+                        label='Uncertainty')
+        #plt.plot((0,T-1), (average_regret_bidding[0], average_regret_bidding[-1]), 'ro', linestyle="--")
+        plt.xlabel('$t$')
+        plt.legend()
+        plt.savefig('just_bidding_regret.png')
+        
+
+        #now plot the bids in time
+        plt.figure()        
+        plt.plot(np.arange(self.T_bidding), my_bids, label='My bids')
+        plt.plot(np.arange(self.T_bidding), m_ts, label='Opponent bids')
+        plt.title('Bids in time')
+        plt.xlabel('$t$')
+        plt.legend()
+        plt.savefig('bids_in_time.png')
+
+
 
     def pricing(self):
         
@@ -355,7 +405,6 @@ class Requirement:
                 agent.update(losses_t)
                 day_sales = d_t[arm_t]
                 day_profit = r_t[arm_t]
-                print(day_profit)
 
                 ''' LOGGING PRICING '''
                 total_sales += day_sales
@@ -367,7 +416,7 @@ class Requirement:
 
                 # print(f"Day {t+1}: Price: {price_t:.2f}, Losses: {np.round(losses_t, 2)}, Theta: {np.round(theta_seq[t], 2)}, Demand: {np.round(d_t, 2)}, Profit: {np.round(r_t, 2)}")
             
-            print(f"Total Sales: {total_sales:.2f}, Total Profit: {total_profit:.2f}")
+            print(f"Iteration: {seed}, Total Sales: {total_sales:.2f}, Total Profit: {total_profit:.2f}")
 
             ''' PRICING CLAIRVOYANT '''
             expected_clairvoyant_rewards, _ = get_clairvoyant_pricing_adversarial(my_prices, my_rewards, discr_prices, T, envir, num_buyers)
@@ -404,7 +453,7 @@ if __name__ == '__main__':
     parser.add_argument("--num_competitors", dest="num_competitors", type=int, default=10)
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
     parser.add_argument("--my_ctr", dest = "my_ctr", type=float, default = None)
-    parser.add_argument("--my_valuation", dest = "my_valuation", type=float, default = 0.8)
+    parser.add_argument("--my_valuation", dest = "my_valuation", type=float, default = 0.6)
     parser.add_argument("--seed", dest="seed", type=int, default=1)
     parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='main')
 
