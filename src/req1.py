@@ -33,7 +33,7 @@ class Requirement1:
     def main(self):
         
         ''' PRICING SETUP '''
-        item_cost = 0.1
+        item_cost = 0.2
         min_price = 0
         max_price = 1
 
@@ -51,10 +51,6 @@ class Requirement1:
         conversion_probability = lambda p: (1 - p/max_price) ** theta
         # such that the probability of conversion is 1 at price = 0 and 0 at price = max_price
         pricing_envir = envi.StochasticPricingEnvironment(conversion_probability, item_cost)
-
-        # the maximum possible profit is selling to the max possible number of visitors per day (assuming I win all auctions of the day)
-        max_reward = (max_price - item_cost) * np.max(self.auctions_per_day)
-        min_reward = (min_price - item_cost) * np.max(self.auctions_per_day)
 
         ''' BIDDING SETUP '''
         num_competitors = self.num_competitors
@@ -156,14 +152,30 @@ class Requirement1:
 
                 ### Pricing phase: updating the price at the end of the day
                 # get bandit feedback from environment
-                if n_clicks > 0:
+
+                if n_clicks == 0:
+                    # this is to de-bias the GPUCB agent from the bids of the day
+                    n_clicks = 1
+                    # otherwise not winning any auction would result in 0 reward regardless of the price
+                # n_clicks = 100
+                """ if n_clicks > 0:
                     d_t, r_t = pricing_envir.round(price_t, n_clicks)
+                    max_reward = (max_price - item_cost) * n_clicks
+                    min_reward = (min_price - item_cost) * n_clicks
+
+                    # update agent with profit normalized to [0,1]
+                    pricing_agent.update(normalize_zero_one(r_t, min_reward, max_reward))
                 else:
                     d_t, r_t = 0, 0
+                    # no pricing agent update if no clicks """
+
+                d_t, r_t = pricing_envir.round(price_t, n_clicks)
+                max_reward = (max_price - item_cost) * n_clicks
+                min_reward = (min_price - item_cost) * n_clicks
 
                 # update agent with profit normalized to [0,1]
                 pricing_agent.update(normalize_zero_one(r_t, min_reward, max_reward))
-
+                
                 # update sales and profit on the played price
                 day_sales = d_t
                 day_profit = r_t
@@ -358,7 +370,8 @@ class Requirement1:
 
         discr_prices = np.linspace(min_price, max_price, K)
 
-        conversion_probability = lambda p: 1 - p/max_price
+        theta = 1
+        conversion_probability = lambda p: (1 - p/max_price)**theta
         # such that the probability of conversion is 1 at price = 0 and 0 at price = max_price
 
         reward_function = lambda price, n_sales: (price - item_cost) * n_sales
@@ -373,7 +386,7 @@ class Requirement1:
         expected_profit_curve = n_customers * conversion_probability(discr_prices) * (discr_prices-item_cost)
         best_price_index = np.argmax(expected_profit_curve)
 
-        expected_clairvoyant_rewards = np.repeat(np.ceil(expected_profit_curve[best_price_index]), self.T_pricing)
+        expected_clairvoyant_rewards = np.repeat(expected_profit_curve[best_price_index], self.T_pricing)
 
         n_trials = self.n_iters
         regret_per_trial = []
@@ -445,9 +458,9 @@ class Requirement1:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--num_days", dest="num_days", type=int, default=90)
-    parser.add_argument("--auctions_per_day", dest="auctions_per_day", type=int, default=20)
-    parser.add_argument("--n_iters", dest="n_iters", type = int, default=5)
+    parser.add_argument("--num_days", dest="num_days", type=int, default=120)
+    parser.add_argument("--auctions_per_day", dest="auctions_per_day", type=int, default=90)
+    parser.add_argument("--n_iters", dest="n_iters", type = int, default=10)
     parser.add_argument("--num_competitors", dest="num_competitors", type=int, default=10)
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
     parser.add_argument("--seed", dest="seed", type=int, default=1)
