@@ -49,31 +49,31 @@ def get_clairvoyant_truthful_stochastic(budget, my_valuation, m_t, n_auctions):
         i+=1
     return clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments
 
-def get_clairvoyant_non_truthful_adversarial(budget, my_valuation, m_t, n_auctions, discr_bids, all_bids, auction_agent = None):
+def get_clairvoyant_non_truthful_adversarial(budget, my_valuation, n_auctions, discr_bids, all_bids, auction_agent = None, idx_agent = 0):
     # the clairvoyant knows the max bid at each round
     
     clairvoyant_utilities = np.zeros(n_auctions)
     clairvoyant_bids= np.zeros(n_auctions)
     clairvoyant_payments = np.zeros(n_auctions)
-
     temp_utilities = np.zeros(n_auctions)
     temp_bids= np.zeros(n_auctions)
     temp_payments = np.zeros(n_auctions)    
-
     max_utility = -np.inf
     best_bid_idx = None
+
     for bid_idx, bid in enumerate(discr_bids):
         c = 0 # total money spent
         bid_utility = 0
         for auction_idx in range(n_auctions):
             if c <= budget-1:
+                all_bids[idx_agent, auction_idx] = bid
                 winner, _ = auction_agent.get_winners(all_bids[:, auction_idx])
-                bid_utility += (my_valuation-bid)*(winner == 0)
-                c += bid*(bid>=m_t[auction_idx])
+                bid_utility += (my_valuation-bid)*(winner == idx_agent)
+                c += bid*(winner == idx_agent)
 
                 temp_bids[auction_idx] = bid
-                temp_utilities[auction_idx] = (my_valuation-bid)*(winner == 0)
-                temp_payments[auction_idx] = bid*(winner == 0)
+                temp_utilities[auction_idx] = (my_valuation-bid)*(winner == idx_agent)
+                temp_payments[auction_idx] = bid*(winner == idx_agent)
             else:
                 temp_bids[auction_idx] = 0
                 temp_payments[auction_idx] = 0
@@ -86,7 +86,7 @@ def get_clairvoyant_non_truthful_adversarial(budget, my_valuation, m_t, n_auctio
             clairvoyant_bids = np.copy(temp_bids)
             clairvoyant_payments = np.copy(temp_payments)
                 
-        # best_bid = discr_bids[best_bid_idx]
+        best_bid = discr_bids[best_bid_idx]
 
     
     return clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments

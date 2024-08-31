@@ -189,7 +189,7 @@ class Requirement:
             regret_per_trial_pricing.append(np.cumsum(expected_clairvoyant_rewards - my_rewards))
 
             ''' BIDDING CLAIRVOYANT '''
-            clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_non_truthful_adversarial(budget, my_valuation, m_ts, self.T_bidding, available_bids, all_bids, auction_agent=auction)
+            clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_non_truthful_adversarial(budget, my_valuation, self.T_bidding, available_bids, all_bids, auction_agent=auction, idx_agent=0)
 
             regret_per_trial_bidding.append(np.cumsum(clairvoyant_utilities - my_utilities))
         
@@ -315,7 +315,7 @@ class Requirement:
 
 
             ''' BIDDING CLAIRVOYANT '''
-            clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_non_truthful_adversarial(budget, self.my_valuation, m_ts, self.T_bidding, available_bids, all_bids, auction_agent=auction)
+            clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_non_truthful_adversarial(budget, self.my_valuation, self.T_bidding, available_bids, all_bids, auction_agent=auction, idx_agent=0)
 
             regret_per_trial_bidding.append(np.cumsum(clairvoyant_utilities - my_utilities))
 
@@ -345,8 +345,6 @@ class Requirement:
         plt.xlabel('$t$')
         plt.legend()
         plt.savefig('bids_in_time.png')
-
-
 
     def pricing(self):
         
@@ -453,7 +451,7 @@ if __name__ == '__main__':
     parser.add_argument("--num_competitors", dest="num_competitors", type=int, default=10)
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
     parser.add_argument("--my_ctr", dest = "my_ctr", type=float, default = None)
-    parser.add_argument("--my_valuation", dest = "my_valuation", type=float, default = 0.6)
+    parser.add_argument("--my_valuation", dest = "my_valuation", type=float, default = 0.8)
     parser.add_argument("--seed", dest="seed", type=int, default=1)
     parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='main')
 
