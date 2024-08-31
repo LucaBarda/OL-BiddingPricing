@@ -8,6 +8,7 @@ from .UCB1Agent import *
 from .SWUCBAgent import *
 from .CUSUMUCBAgent import *
 from .ThompsonSamplingCUSUM import *
+from .CUSUM_GP_UCBAgent import *
 
 
 

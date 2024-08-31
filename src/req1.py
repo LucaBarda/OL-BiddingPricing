@@ -394,7 +394,7 @@ class Requirement1:
         for seed in range(n_trials):
             np.random.seed(seed)
 
-            agent = ag.GPUCBAgent(T = self.T_pricing, discretization = K)
+            agent = ag.GPUCBAgent(T = self.T_pricing, K = K)
             envir = envi.StochasticPricingEnvironment(conversion_probability, item_cost)
 
             my_prices = np.array([])

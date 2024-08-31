@@ -2,10 +2,11 @@ import argparse
 import numpy as np
 import math
 
-from agents import GPUCBAgent, UCB1Agent, SWUCBAgent
+from agents import CUSUM_GP_UCBAgent, UCB1Agent, SWUCBAgent, CUSUMUCBAgent, ThompsonSamplingCUSUM
 
-from agents.CUSUMUCBAgent import CUSUMUCBAgent
-from agents.ThompsonSamplingCUSUM import ThompsonSamplingCUSUM
+#from agents.CUSUMUCBAgent import CUSUMUCBAgent
+#from agents.ThompsonSamplingCUSUM import ThompsonSamplingCUSUM
+
 from environments import NonStationaryPricingEnvironment
 from utils import *
 import matplotlib.pyplot as plt
@@ -21,7 +22,7 @@ class Requirement3():
 
         #set algorithm to run
         if self.learning_type == "all":
-            self.learning_type = ["ucb", "ucb_sw", "cusum"]
+            self.learning_type = ["ucb", "ucb_sw", 'gp_ucb_cusum' , 'cusum_ucb_ts']
 
         #set seed in numpy
         np.random.seed(self.seed)
@@ -103,20 +104,27 @@ class Requirement3():
 
         colors = ['b', 'g', 'r', 'c', 'm']
 
+        U_T = self.intervals-1
+        h = 2*np.log(self.T_pricing/U_T) # sensitivity of detection, threshold for cumulative deviation
+        M = int(np.log(self.T_pricing/U_T)) # robustness of change detection
+
         #####        naive UCB1 agent      #####
 
         if "ucb" in self.learning_type:
 
+            print("---- UCB1 agent ----")
             #initialize agent
             regret_per_trial = []
 
             for ite in range(self.n_iters):
-                print(ite)
+                print(f'iteration {ite}', end="\r")
                 env = NonStationaryPricingEnvironment(cost = self.cost, 
                                                 conversion_probabilities = self.demand_functions, 
                                                 T_interval = self.T_interval, 
                                                 seed = self.seed)
+                #agent = UCB1Agent(self.K, self.T_pricing, range = maximum_profit)
                 agent = UCB1Agent(self.K, self.T_pricing, range = maximum_profit)
+
 
                 agent_rewards = np.array([])
 
@@ -124,7 +132,7 @@ class Requirement3():
                     a_t = agent.pull_arm()
                     p_t = self.prices[a_t]
                     _ , r_t = env.round(p_t = p_t, n_t=self.num_buyers)
-                    #r_t_normal = normalize_zero_one(r_t, self.min_price, self.max_price)
+                    
                     agent.update(r_t)
 
                     agent_rewards = np.append(agent_rewards, r_t)
@@ -170,6 +178,8 @@ class Requirement3():
         #####        SW-UCB agent  - sliding window    #####
 
         if "ucb_sw" in self.learning_type:
+            
+            print("---- Sliding Window UCB agent ----")
 
             U_T = self.intervals-1 # maximum number of abrupt changes
             W = int(2*np.sqrt(self.T_pricing*np.log(self.T_pricing)/U_T)) # assuming U_T is known
@@ -178,7 +188,7 @@ class Requirement3():
             regret_per_trial = []
 
             for ite in range(self.n_iters):
-                print(ite)
+                print(f'iteration {ite}', end="\r")
                 env = NonStationaryPricingEnvironment(cost = self.cost, 
                                                 conversion_probabilities = self.demand_functions, 
                                                 T_interval = self.T_interval, 
@@ -191,7 +201,6 @@ class Requirement3():
                     a_t = agent.pull_arm()
                     p_t = self.prices[a_t]
                     _ , r_t = env.round(p_t = p_t, n_t=self.num_buyers)
-                    r_t_normal = normalize_zero_one(r_t, self.min_price, self.max_price)
                     agent.update(r_t)
 
                     agent_rewards = np.append(agent_rewards, r_t)
@@ -231,13 +240,89 @@ class Requirement3():
 
             print("UCB - sliding window agent total regret: ", average_regret[-1])
 
+
+                #####        naive UCB1 agent      #####
+
+        if "gp_ucb_cusum" in self.learning_type:
+
+            print("---- GP-UCB CUSUM agent ----")
+
+            #initialize agent
+            regret_per_trial = []
+
+            for ite in range(1):
+                env = NonStationaryPricingEnvironment(cost = self.cost, 
+                                                conversion_probabilities = self.demand_functions, 
+                                                T_interval = self.T_interval, 
+                                                seed = self.seed)
+                #agent = UCB1Agent(self.K, self.T_pricing, range = maximum_profit)
+                agent = CUSUM_GP_UCBAgent(self.T_pricing, M = 2*M, h = 240, epsilon=130, K = self.K,  scale = maximum_profit)
+
+
+                agent_rewards = np.array([])
+
+                for t in range(self.T_pricing):
+                    
+                    p_t = agent.pull_arm()
+                    p_t = denormalize_zero_one(p_t, self.min_price, self.max_price)
+                    _ , r_t = env.round(p_t = p_t, n_t=self.num_buyers)
+
+                    if(t%2000==0):
+                        print(f'time: {t} - price: {p_t}')
+                    
+                    agent.update(r_t)
+
+                    agent_rewards = np.append(agent_rewards, r_t)
+
+                cumulative_regret = np.cumsum(clairvoyant_rewards-agent_rewards)
+                regret_per_trial.append(cumulative_regret)
+
+            print(agent.reset_times)
+            print(agent.n_resets)
+
+            regret_per_trial = np.array(regret_per_trial)
+
+            average_regret = regret_per_trial.mean(axis=0)
+
+            #normalize average regret
+            average_regret = average_regret / maximum_profit
+
+            regret_sd = regret_per_trial.std(axis=0)
+
+
+            plt.plot(np.arange(self.T_pricing), average_regret, label='Average Regret')
+            plt.title('cumulative regret of GP-UCB-CUSUM')
+            plt.fill_between(np.arange(self.T_pricing),
+                            average_regret-regret_sd/np.sqrt(self.n_iters),
+                            average_regret+regret_sd/np.sqrt(self.n_iters),
+                            alpha=0.3,
+                            label='Uncertainty')
+            plt.xlabel('$t$')
+            plt.legend()
+            plt.show()
+
+            plt.figure()
+            plt.barh(self.prices, agent.N_pulls)
+            for interval in range(self.intervals):
+                plt.axhline(y=best_prices_each_interval[interval], color=colors[interval], linestyle='--', label=f'best price interval {interval}')
+
+            plt.ylabel('actions')
+            plt.xlabel('numer of pulls')
+            plt.legend()
+            plt.title('Number of pulls for each action')
+            plt.show()
+
+            print("GP-UCB-CUSUM agent total regret: ", average_regret[-1])
+
         
         
         # CUSUM agents run both UCB and Thompson Sampling
 
-        if "cusum" in self.learning_type:
+        if 'cusum_ucb_ts' in self.learning_type: 
 
             #####        CUMSUM UCB agent      #####
+
+            print("---- CUSUM UCB agent ----")
 
             U_T = self.intervals-1
             h = 2*np.log(self.T_pricing/U_T) # sensitivity of detection, threshold for cumulative deviation
@@ -247,7 +332,7 @@ class Requirement3():
             regret_per_trial = []
 
             for ite in range(self.n_iters):
-                print(ite)
+                print(f'iteration {ite}', end="\r")
                 env = NonStationaryPricingEnvironment(cost = self.cost, 
                                                 conversion_probabilities = self.demand_functions, 
                                                 T_interval = self.T_interval, 
@@ -302,6 +387,8 @@ class Requirement3():
 
             #####      Thompson Sampling CUSUM agent      #####
 
+            print("---- Thompson Sampling CUSUM agent ----")
+
             U_T = self.intervals-1
             h = 2*np.log(self.T_pricing/U_T) # sensitivity of detection, threshold for cumulative deviation
             M = int(np.log(self.T_pricing/U_T)) # robustness of change detection
@@ -310,7 +397,7 @@ class Requirement3():
 
             #executed just 2 times since it is slower
             for ite in range(2):
-                print(ite)
+                print(f'iteration {ite}', end="\r")
                 env = NonStationaryPricingEnvironment(cost = self.cost, 
                                                 conversion_probabilities = self.demand_functions, 
                                                 T_interval = self.T_interval, 
@@ -320,7 +407,8 @@ class Requirement3():
                 agent_rewards = np.array([])
 
                 for t in range(self.T_pricing):
-                    print(t)
+                    if(t%2000==0):
+                        print(f'iteration: {ite} - time: {t} - price: {p_t}' , end="\r")
                     a_t = agent.pull_arm()
                     p_t = self.prices[a_t]
                     _ , r_t = env.round(p_t = p_t, n_t=self.num_buyers)
@@ -376,7 +464,7 @@ if __name__ == '__main__':
     parser.add_argument("--seed", dest="seed", type=int, default=1)
     #for pricing only
     parser.add_argument("--num_buyers", dest="num_buyers", type = int, default = 100)
-    parser.add_argument("--learning_type", dest="learning_type", type = str, choices=['ucb', 'ucb_sw', 'cusum', "all"], default = "all")
+    parser.add_argument("--learning_type", dest="learning_type", type = str, choices=['ucb', 'ucb_sw', 'gp_ucb_cusum' , 'cusum_ucb_ts', "all"], default = "all")
 
     args = parser.parse_args()    
 
