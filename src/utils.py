@@ -55,15 +55,16 @@ def get_clairvoyant_non_truthful_adversarial(budget, my_valuation, n_auctions, d
     clairvoyant_utilities = np.zeros(n_auctions)
     clairvoyant_bids= np.zeros(n_auctions)
     clairvoyant_payments = np.zeros(n_auctions)
-    temp_utilities = np.zeros(n_auctions)
-    temp_bids= np.zeros(n_auctions)
-    temp_payments = np.zeros(n_auctions)    
+
     max_utility = -np.inf
     best_bid_idx = None
 
     for bid_idx, bid in enumerate(discr_bids):
         c = 0 # total money spent
         bid_utility = 0
+        temp_utilities = np.zeros(n_auctions)
+        temp_bids= np.zeros(n_auctions)
+        temp_payments = np.zeros(n_auctions)            
         for auction_idx in range(n_auctions):
             if c <= budget-1:
                 all_bids[idx_agent, auction_idx] = bid
