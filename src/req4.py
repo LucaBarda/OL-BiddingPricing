@@ -57,31 +57,25 @@ class Requirement:
         idx_non_trut = range(num_participants // 3, 2 * num_participants // 3) #non-truthful bidders
         idx_ucb = range(2 * num_participants // 3, num_participants) #ucb bidders
 
-        ''' LOGGING METRICS'''
+
+        ''' LOGGING METRICS '''
         # Initialize lists to store total utilities, payments, and wins for each type of bidder
         total_utilities_distribution = {0: [], 1: [], 2: []}
         total_payments_distribution = {0: [], 1: [], 2: []}
         total_wins_distribution = {0: [], 1: [], 2: []}
-
-        '''LOGGIT REGRET'''
         regret_per_trial_bidding_nont = []
         regret_per_trial_bidding_t = []
         regret_per_trial_bidding_ucb = []
 
         for seed in range(self.n_iters):
-            np.random.seed(seed)
-            # if self.valuation is None:
-            #     valuations = np.random.uniform(0.7, 0.8, num_participants)
-            # else:
-            #     valuations = np.ones(num_participants) * self.valuation #same valuation for all bidders
+            np.random.seed(self.seed + seed)
+            if self.valuation is None:
+                valuations = np.random.uniform(0.7, 0.8, num_participants)
+            else:
+                valuations = np.ones(num_participants) * self.valuation #same valuation for all bidders
 
-
-
-            # if self.ctrs is None:
-            #     self.ctrs = np.random.uniform(0.4, 0.9, self.num_participants)
-
-            self.ctrs = np.ones(num_participants)
-            valuations = np.ones(num_participants) * 0.75
+            if self.ctrs is None:
+                self.ctrs = np.random.uniform(0.4, 0.9, self.num_participants)
 
             bidders = []
             for i in idx_trut:
@@ -94,7 +88,7 @@ class Requirement:
             auction = au.FirstPriceAuction(self.ctrs)
 
             min_bid = 0
-            max_bids = np.ones(num_participants) #max bis are the valuation of the bidders minus an epsilon
+            max_bids = valuations - 0.05#max bis are the valuation of the bidders minus an epsilon
 
             for i in range(num_participants):
                 available_bids[i] = np.linspace(min_bid, max_bids[i], K)
@@ -284,7 +278,7 @@ class Requirement:
 
 
         min_bid = 0
-        max_bid = 1
+        max_bid = self.valuation - 0.05
         available_bids = np.linspace(min_bid, max_bid, K)
         total_auctions = self.T_bidding
 
@@ -502,8 +496,8 @@ if __name__ == '__main__':
     parser.add_argument("--num_participants", dest="num_participants", type=int, default=9)
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
     parser.add_argument("--eta", dest="eta", type=float, default=None) #learning rate for truthful bidders (default is 1/sqrt(T), one might decrease it to improve competition)
-    parser.add_argument("--seed", dest="seed", type=int, default=10)
-    parser.add_argument("--scenario", dest="scenario", type=str, choices=['solo', 'stochastic', 'adversarial'], default='adversarial')
+    parser.add_argument("--seed", dest="seed", type=int, default=1)
+    parser.add_argument("--scenario", dest="scenario", type=str, choices=['solo', 'stochastic', 'adversarial'], default='solo')
 
     args = parser.parse_args()    
 
