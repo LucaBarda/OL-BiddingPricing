@@ -57,9 +57,17 @@ class Requirement:
         idx_non_trut = range(num_participants // 3, 2 * num_participants // 3) #non-truthful bidders
         idx_ucb = range(2 * num_participants // 3, num_participants) #ucb bidders
 
+        ''' LOGGING METRICS'''
+        # Initialize lists to store total utilities, payments, and wins for each type of bidder
+        total_utilities_distribution = {0: [], 1: [], 2: []}
+        total_payments_distribution = {0: [], 1: [], 2: []}
+        total_wins_distribution = {0: [], 1: [], 2: []}
+
+        '''LOGGIT REGRET'''
         regret_per_trial_bidding_nont = []
         regret_per_trial_bidding_t = []
         regret_per_trial_bidding_ucb = []
+
         for seed in range(self.n_iters):
             np.random.seed(seed)
             # if self.valuation is None:
@@ -139,10 +147,14 @@ class Requirement:
 
                     m_ts[i, t] = m_t
                     my_utilities[i, t] = f_t
-                
-                
 
-                # print(f"Auction {t+1}: Winner type: {winner//3}, winning bid {m_t_1}, Utility: {f_t}, Payment: {c_t}")
+            ''' LOGGING METRICS '''
+            # Store total utilities, payments, and wins for this iteration
+            total_utilities_distribution = [total_utilities_distribution[i].append(total_utility_types[i]) for i in range(3)]
+            total_payments_distribution = [total_payments_distribution[i].append(total_spent_types[i]) for i in range(3)]
+            total_wins_distribution = [total_wins_distribution[i].append(total_wins_types[i] / (num_participants // 3)) for i in range(3)]            
+                            
+
             print("\n\nFinal results: \n")
             print(f"Total wins for truthful bidders: {total_wins_types[0]}, Total utility: {total_utility_types[0]}, Total spent on average: {total_spent_types[0]/(num_participants//3)}")
             print(f"Total wins for non-truthful bidders: {total_wins_types[1]}, Total utility: {total_utility_types[1]}, Total spent on average: {total_spent_types[1]/(num_participants//3)}")
@@ -194,7 +206,8 @@ class Requirement:
         plt.xlabel("Time")
         plt.ylabel("Regret")
         plt.legend()
-        plt.savefig("regret_all_bidders.png")
+        # plt.savefig("regret_all_bidders.png")
+        plt.show()
 
         # PLOTTING UTILITIES FOR ALL BIDDERS
         plt.figure()
@@ -204,7 +217,8 @@ class Requirement:
         plt.xlabel("Time")
         plt.ylabel("Utility")
         plt.legend()
-        plt.savefig("utilities_all_bidders.png")
+        # plt.savefig("utilities_all_bidders.png")
+        plt.show()
 
         # PLOTTING CLAIRVOYANT UTILITIES FOR ALL BIDDERS
         plt.figure()
@@ -214,7 +228,41 @@ class Requirement:
         plt.xlabel("Time")
         plt.ylabel("Utility")
         plt.legend()
-        plt.savefig("clairvoyant_utilities_all_bidders.png")
+        # plt.savefig("clairvoyant_utilities_all_bidders.png")
+        plt.show()
+
+        # PLOTTING DISTRIBUTIONS FOR TOTAL UTILITIES
+        plt.figure()
+        for label, index in bidder_types.items():
+            plt.hist(total_utilities_distribution[index], bins=20, alpha=0.5, label=label, density=True)
+        plt.title("Distribution of Total Utilities")
+        plt.xlabel("Total Utility")
+        plt.ylabel("Density")
+        plt.legend()
+        # plt.savefig("distribution_total_utilities.png")
+        plt.show()
+
+        # PLOTTING DISTRIBUTIONS FOR TOTAL PAYMENTS
+        plt.figure()
+        for label, index in bidder_types.items():
+            plt.hist(total_payments_distribution[index], bins=20, alpha=0.5, label=label, density=True)
+        plt.title("Distribution of Total Payments")
+        plt.xlabel("Total Payment")
+        plt.ylabel("Density")
+        plt.legend()
+        # plt.savefig("distribution_total_payments.png")
+        plt.show()
+
+        # PLOTTING DISTRIBUTIONS FOR PERCENTAGE OF WINS
+        plt.figure()
+        for label, index in bidder_types.items():
+            plt.hist(total_wins_distribution[index], bins=20, alpha=0.5, label=label, density=True)
+        plt.title("Distribution of Percentage of Wins")
+        plt.xlabel("Percentage of Wins")
+        plt.ylabel("Density")
+        plt.legend()
+        # plt.savefig("distribution_percentage_wins.png")        
+        plt.show()
 
     def stochastic(self):
         pass
@@ -419,7 +467,8 @@ class Requirement:
         #create folder if it does not exist
         if not os.path.exists("req4_adv"):
             os.makedirs("req4_adv")        
-        plt.savefig("req4_adv/regret_all_bidders.png")
+        # plt.savefig("req4_adv/regret_all_bidders.png")
+        plt.show()
 
         ''' PLOTTING UTILITIES FOR ALL BIDDERS '''
         plt.figure()
@@ -429,7 +478,8 @@ class Requirement:
         plt.xlabel("Time")
         plt.ylabel("Utility")
         plt.legend()
-        plt.savefig("req4_adv/utilities_all_bidders.png")
+        # plt.savefig("req4_adv/utilities_all_bidders.png")
+        plt.show()
 
         ''' PLOTTING CLAIRVOYANT UTILITIES FOR ALL BIDDERS '''  
         plt.figure()
@@ -439,7 +489,8 @@ class Requirement:
         plt.xlabel("Time")
         plt.ylabel("Utility")
         plt.legend()
-        plt.savefig("req4_adv/clairvoyant_utilities_all_bidders.png")
+        # plt.savefig("req4_adv/clairvoyant_utilities_all_bidders.png")
+        plt.show()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
