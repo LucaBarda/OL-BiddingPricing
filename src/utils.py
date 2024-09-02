@@ -9,6 +9,10 @@ from reportlab.lib.units import inch
 from reportlab.lib.utils import ImageReader
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle """
 
+def parse_list(argument):
+    return [float(item) for item in argument.split(',')]
+
+
 def set_seed(seed):
     np.random.seed(seed)
     return
@@ -49,7 +53,7 @@ def get_clairvoyant_truthful_stochastic(budget, my_valuation, m_t, n_auctions):
         i+=1
     return clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments
 
-def get_clairvoyant_non_truthful_adversarial(budget, my_valuation, n_auctions, discr_bids, all_bids, auction_agent = None, idx_agent = 0):
+def get_clairvoyant_non_truthful_adversarial(budget, my_valuation, n_auctions, discr_bids, all_bids, auction_agent = None, idx_agent = 0, exclude_bidders = None):
     # the clairvoyant knows the max bid at each round
     
     clairvoyant_utilities = np.zeros(n_auctions)
@@ -58,6 +62,26 @@ def get_clairvoyant_non_truthful_adversarial(budget, my_valuation, n_auctions, d
 
     max_utility = -np.inf
     best_bid_idx = None
+    auction_agent = copy.deepcopy(auction_agent)
+    #for the adversarial case in req4
+    if exclude_bidders is not None:
+        assert idx_agent not in exclude_bidders, "idx_agent cannot be in exclude_bidders"
+        #compute new position of idx_agent in auction_agent.ctrs after excluding exclude_bidders
+        exclude_bidders = np.array(exclude_bidders)
+        exclude_bidders = np.sort(exclude_bidders)
+        before_ag_idx = exclude_bidders[exclude_bidders < idx_agent]
+        idx_agent = idx_agent - len(before_ag_idx)
+
+
+        #now delete elements with index exclude_bidders from auction_agent.ctrs
+        auction_agent.ctrs = np.delete(auction_agent.ctrs, exclude_bidders)
+        auction_agent.n_adv = len(auction_agent.ctrs)
+        #now the same for all_bids
+        all_bids = np.delete(all_bids, exclude_bidders, axis=0)
+
+   
+
+
 
     for bid_idx, bid in enumerate(discr_bids):
         c = 0 # total money spent
@@ -89,8 +113,6 @@ def get_clairvoyant_non_truthful_adversarial(budget, my_valuation, n_auctions, d
         
             
         best_bid = discr_bids[best_bid_idx]
-
-    
     return clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments
 
 def get_clairvoyant_pricing_adversarial(my_prices, my_rewards, discr_prices, T_pricing, adv_pricing_agent, num_buyers):

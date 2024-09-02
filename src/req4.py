@@ -144,9 +144,10 @@ class Requirement:
 
             ''' LOGGING METRICS '''
             # Store total utilities, payments, and wins for this iteration
-            total_utilities_distribution = [total_utilities_distribution[i].append(total_utility_types[i]) for i in range(3)]
-            total_payments_distribution = [total_payments_distribution[i].append(total_spent_types[i]) for i in range(3)]
-            total_wins_distribution = [total_wins_distribution[i].append(total_wins_types[i] / (num_participants // 3)) for i in range(3)]            
+            for i in range(3):
+                total_utilities_distribution[i].append(total_utility_types[i]) 
+                total_payments_distribution[i].append(total_spent_types[i]) 
+                total_wins_distribution[i].append(total_wins_types[i] / (self.T_bidding))
                             
 
             print("\n\nFinal results: \n")
@@ -282,7 +283,20 @@ class Requirement:
         available_bids = np.linspace(min_bid, max_bid, K)
         total_auctions = self.T_bidding
 
-        
+        '''LOGGING METRICS'''
+        # Initialize lists to store the utilities, payments, and wins for each bidder type across iterations
+        utilities_distribution_t = []
+        utilities_distribution_nont = []
+        utilities_distribution_ucb = []
+
+        payments_distribution_t = []
+        payments_distribution_nont = []
+        payments_distribution_ucb = []
+
+        wins_distribution_t = []
+        wins_distribution_nont = []
+        wins_distribution_ucb = []        
+                
         utilities_per_iteration_t = []
         utilities_per_iteration_nont = []
         utilities_per_iteration_ucb = []
@@ -291,17 +305,20 @@ class Requirement:
         regret_per_trial_bidding_nont = []
         regret_per_trial_bidding_t = []
         regret_per_trial_bidding_ucb = []
+
+        #ITERATIONS
         for seed in range(self.n_iters):
             np.random.seed(seed)
 
-            self.ctrs = np.random.uniform(0.2, 0.8, num_competitors+3)
+            self.ctrs = np.random.uniform(0.4, 0.9, num_competitors+3)
             if self.my_ctrs is not None:
-                self.ctrs[0] = 0.8#self.my_ctrs[0]
-                self.ctrs[1] = 0.9#self.my_ctrs[1]
-                self.ctrs[2] = 0.2#self.my_ctrs[2]
+                self.ctrs[0] = self.my_ctrs[0]
+                self.ctrs[1] = self.my_ctrs[1]
+                self.ctrs[2] = self.my_ctrs[2]
+            
             
 
-            other_bids = np.random.uniform(0.2, 0.8, size=(num_competitors, total_auctions))# matrix of bids for each competitor in each auction
+            other_bids = np.random.uniform(0.2, 0.80, size=(num_competitors, total_auctions))# matrix of bids for each competitor in each auction
 
             #the 3 agents: truthful, non-truthful, ucb
             agent_truthful = ag.StochasticPacingAgent(self.valuation, self.budget, total_auctions, eta)
@@ -410,10 +427,23 @@ class Requirement:
 
                 # print(f"Auction {t+1}: Bid: {bid_t:.2f}, Opponent bid {m_t:.2f}, Utility: {f_t:.2f}, Payment: {c_t:.2f}, Winner: {winner}")
 
-
+            ''' LOGGING METRICS '''
             utilities_per_iteration_t.append(my_utilities[0])
             utilities_per_iteration_nont.append(my_utilities[1])
             utilities_per_iteration_ucb.append(my_utilities[2])
+
+            # Accumulate utilities, payments, and wins for each bidder type
+            utilities_distribution_t.append(total_utility_types[0])
+            utilities_distribution_nont.append(total_utility_types[1])
+            utilities_distribution_ucb.append(total_utility_types[2])
+
+            payments_distribution_t.append(total_spent_types[0])
+            payments_distribution_nont.append(total_spent_types[1])
+            payments_distribution_ucb.append(total_spent_types[2])
+
+            wins_distribution_t.append(total_wins_types[0])
+            wins_distribution_nont.append(total_wins_types[1])
+            wins_distribution_ucb.append(total_wins_types[2])            
             
 
             print("\n\nFinal results: \n")
@@ -425,7 +455,9 @@ class Requirement:
             ''' ADVERSARIAL CLAIRVOYANT '''
             clairvoyant_utilities = np.zeros((3, self.T_bidding))
             for i in range(3):
-                _, clairvoyant_utilities[i], _ = get_clairvoyant_non_truthful_adversarial(self.budget, self.valuation, self.T_bidding, available_bids, all_bids, auction_agent=auction, idx_agent=i)
+                except_other_agents = [j for j in range(3) if j != i]
+                _, clairvoyant_utilities[i], _ = get_clairvoyant_non_truthful_adversarial(self.budget, self.valuation, self.T_bidding, available_bids, all_bids, auction_agent=auction, idx_agent=i, exclude_bidders=except_other_agents)
+
                 clairvoyant_utilities_per_iteration[i] += clairvoyant_utilities[i]
             #regret for each type of bidder
             regret_per_trial_bidding_t.append(np.cumsum(clairvoyant_utilities[0] - my_utilities[0]))
@@ -486,15 +518,48 @@ class Requirement:
         # plt.savefig("req4_adv/clairvoyant_utilities_all_bidders.png")
         plt.show()
 
+        '''PLOTTING DISTRIBUTIONS FOR UTILITIES'''
+        plt.figure()
+        plt.hist(utilities_distribution_t, bins=20, alpha=0.5, label="Truthful Bidders", density=True)
+        plt.hist(utilities_distribution_nont, bins=20, alpha=0.5, label="Non-Truthful Bidders", density=True)
+        plt.hist(utilities_distribution_ucb, bins=20, alpha=0.5, label="UCB Bidders", density=True)
+        plt.title("Distribution of Utilities")
+        plt.xlabel("Utility")
+        plt.ylabel("Density")
+        plt.legend()
+        plt.show()
+
+        '''PLOTTING DISTRIBUTIONS FOR PAYMENTS'''
+        plt.figure()
+        plt.hist(payments_distribution_t, bins=20, alpha=0.5, label="Truthful Bidders", density=True)
+        plt.hist(payments_distribution_nont, bins=20, alpha=0.5, label="Non-Truthful Bidders", density=True)
+        plt.hist(payments_distribution_ucb, bins=20, alpha=0.5, label="UCB Bidders", density=True)
+        plt.title("Distribution of Payments")
+        plt.xlabel("Payment")
+        plt.ylabel("Density")
+        plt.legend()
+        plt.show()
+
+        '''PLOTTING DISTRIBUTIONS FOR WINS'''
+        plt.figure()
+        plt.hist(wins_distribution_t, bins=20, alpha=0.5, label="Truthful Bidders", density=True)
+        plt.hist(wins_distribution_nont, bins=20, alpha=0.5, label="Non-Truthful Bidders", density=True)
+        plt.hist(wins_distribution_ucb, bins=20, alpha=0.5, label="UCB Bidders", density=True)
+        plt.title("Distribution of Wins")
+        plt.xlabel("Wins")
+        plt.ylabel("Density")
+        plt.legend()
+        plt.show()        
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--valuation", dest="valuation", type=float, default=None)
     parser.add_argument("--num_auctions", dest="num_auctions", type=int, default = 1000)
     parser.add_argument("--budget", dest="budget", type=float, default=100)
-    parser.add_argument("--my_ctrs", dest="my_ctrs", type=list, default=None)
+    parser.add_argument("--my_ctrs", dest="my_ctrs", type=parse_list, default=None)
     parser.add_argument("--n_iters", dest="n_iters", type = int, default=20)
     parser.add_argument("--num_participants", dest="num_participants", type=int, default=9)
-    parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
+    parser.add_argument("--ctrs", dest = "ctrs", type=parse_list, default = None)
     parser.add_argument("--eta", dest="eta", type=float, default=None) #learning rate for truthful bidders (default is 1/sqrt(T), one might decrease it to improve competition)
     parser.add_argument("--seed", dest="seed", type=int, default=1)
     parser.add_argument("--scenario", dest="scenario", type=str, choices=['solo', 'stochastic', 'adversarial'], default='solo')
