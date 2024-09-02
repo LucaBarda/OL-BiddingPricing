@@ -87,9 +87,6 @@ def get_clairvoyant_non_truthful_adversarial(budget, my_valuation, n_auctions, d
             clairvoyant_bids = np.copy(temp_bids)
             clairvoyant_payments = np.copy(temp_payments)
         
-    # if idx_agent == 2: 
-    #     print('bid:', bid, 'utility:', bid_utility, 'winner:', winner, 'c:', c)
-    #     print('utilities:', clairvoyant_utilities)
             
         best_bid = discr_bids[best_bid_idx]
 
