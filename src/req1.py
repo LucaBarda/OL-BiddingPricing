@@ -352,11 +352,7 @@ class Requirement1:
         max_price = 1 # price at which the conversion probability is 0
         n_customers = 100
 
-        # discretization step from theory
-        eps = self.T_pricing**(-1/3)
-        K = int(1/eps)
-        if K % 2 == 0:
-            K += 1 # this ensures K is odd
+        K = 100
 
         discr_prices = np.linspace(min_price, max_price, K)
 
@@ -369,8 +365,6 @@ class Requirement1:
         # the maximum possible profit is selling to all customers at the maximum price for which the conversion probability is > 0
         max_reward = (max_price - item_cost) * n_customers
         min_reward = (min_price - item_cost) * n_customers
-
-        print(f"Max Reward: {max_reward}, Discretized Prices: {discr_prices}, K: {K}")
         
         ''' CLAIRVOYANT '''
         expected_profit_curve = n_customers * conversion_probability(discr_prices) * (discr_prices-item_cost)
@@ -378,10 +372,8 @@ class Requirement1:
 
         expected_clairvoyant_rewards = np.repeat(expected_profit_curve[best_price_index], self.T_pricing)
 
-        n_trials = self.n_iters
         regret_per_trial = []
-
-        for seed in range(n_trials):
+        for seed in range(self.n_iters):
             np.random.seed(seed)
 
             agent = ag.GPUCBAgent(T = self.T_pricing, discretization = K)
@@ -429,8 +421,8 @@ class Requirement1:
         plt.plot(np.arange(self.T_pricing), average_regret, label='Average Regret')
         plt.title('Cumulative regret of GPUCB')
         plt.fill_between(np.arange(self.T_pricing),
-                        average_regret-regret_sd/np.sqrt(n_trials),
-                        average_regret+regret_sd/np.sqrt(n_trials),
+                        average_regret-regret_sd/np.sqrt(self.n_iters),
+                        average_regret+regret_sd/np.sqrt(self.n_iters),
                         alpha=0.3,
                         label='Uncertainty')
         #plt.plot((0,T-1), (average_regret[0], average_regret[-1]), 'ro', linestyle="--")
@@ -455,7 +447,7 @@ if __name__ == '__main__':
     parser.add_argument("--num_competitors", dest="num_competitors", type=int, default=10)
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
     parser.add_argument("--seed", dest="seed", type=int, default=1)
-    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='main')
+    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='pricing')
     parser.add_argument("--bidder_type", dest="bidder_type", type=str, choices=['UCB', 'pacing'], default='pacing')
     parser.add_argument("--budget", dest="budget", type=int, default=100)
     parser.add_argument("--valuation", dest="valuation", type=float, default=0.8)
