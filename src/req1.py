@@ -231,25 +231,26 @@ class Requirement1:
 
         num_competitors = self.num_competitors
         my_budget = self.budget
-        # in this case we are just considering bidding so no need to separate for the different days.
-        n_auctions = self.T_bidding
-        # discretization step from theory
-        eps = n_auctions**(-1/3)
-        K = int(1/eps + 1)
-        # learning rate from theory
-        eta = 1/np.sqrt(n_auctions)
 
-        my_valuation = self.valuation
-        
         min_bid = 0
         max_bid = 1
+
+        # in this case we are just considering bidding so no need to separate for the different days
+        # discretization step from theory
+        eps = self.T_bidding**(-1/3)
+        K = int(1/eps + 1)
+
         available_bids = np.linspace(min_bid, max_bid, K)
-        other_bids = lambda n: np.random.beta(14.4, 9.6, n) * max_bid
-        # choose alpha and beta based on the mean and standard deviation of the competitors bids
+        # learning rate from theory
+        eta = 1 / np.sqrt(self.T_bidding)
+
         my_ctr = self.ctr
         self.ctrs[0] = my_ctr
-        other_ctrs = self.ctrs[1:]
-
+        my_valuation = self.valuation
+        
+        other_bids = lambda n: np.random.beta(14.4, 9.6, n) * max_bid
+        # choose alpha and beta based on the mean and standard deviation of the competitors bids
+        
         envir = envi.StochasticBiddingCompetitors(other_bids, num_competitors)
         auction = au.SecondPriceAuction(self.ctrs)
 
@@ -259,33 +260,36 @@ class Requirement1:
             np.random.seed(seed)
 
             if self.bidder_type == 'UCB':
-                agent = ag.UCB1BiddingAgent(my_budget, available_bids, n_auctions)
+                agent = ag.UCB1BiddingAgent(my_budget, available_bids, self.T_bidding)
             elif self.bidder_type == 'pacing':
-                agent = ag.StochasticPacingAgent(my_valuation, my_budget, n_auctions, eta)
+                agent = ag.StochasticPacingAgent(my_valuation, my_budget, self.T_bidding, eta)
             else:
                 print("Invalid bidder type")
                 exit(1)
+
+            total_wins = 0
+            total_utility = 0
+            total_spent = 0
 
             my_utilities = np.array([])
             my_bids = np.array([])
             my_payments = np.array([])
             m_ts = np.array([])
 
-            total_wins = 0
-            total_utility = 0
-            total_spent = 0
-            for t in range(n_auctions):
+            for t in range(self.T_bidding):
                 # agent chooses bid
                 bid_t = agent.bid()
                 # get bids from other competitors
                 other_bids_t = envir.round()
                 m_t = other_bids_t.max()
-
                 bids = np.append(bid_t, other_bids_t)
-                winner, payments_per_click = auction.round(bids)
+
+                winner, payment_per_click = auction.round(bids)
+
                 my_win = (winner == 0)
-                f_t = (my_valuation - m_t) * my_win
-                c_t = m_t * my_win
+
+                f_t = (my_valuation - payment_per_click) * my_win
+                c_t = payment_per_click * my_win
                 # update agent
                 agent.update(f_t, c_t)
 
@@ -306,7 +310,7 @@ class Requirement1:
             bids_per_trial += my_bids.tolist()
 
             ''' CLAIRVOYANT '''
-            clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_truthful_stochastic(my_budget, my_valuation, m_ts, n_auctions)
+            clairvoyant_bids, clairvoyant_utilities, clairvoyant_payments = get_clairvoyant_truthful_stochastic(my_budget, my_valuation, m_ts, self.T_bidding)
 
             cumulative_regret = np.cumsum(clairvoyant_utilities - my_utilities)
             regret_per_trial.append(cumulative_regret)
