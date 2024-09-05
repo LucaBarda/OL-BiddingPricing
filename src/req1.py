@@ -20,12 +20,10 @@ class Requirement1:
 
         #bidding members
         self.auctions_per_day = [self.auctions_per_day for _ in range(self.num_days)] 
-        self.auctions_per_day = [int(i + np.random.uniform(-5, 5)) for i in self.auctions_per_day] #add noise 
-
-        self.competitors_per_day = [100 for _ in range(self.num_days)]
+        self.auctions_per_day = [int(n * np.random.uniform(0.8, 1.2)) for n in self.auctions_per_day] #add noise to the number of auctions
 
         if self.ctrs is None:
-            self.ctrs = np.random.uniform(0.4, 0.9, self.num_competitors+1)
+            self.ctrs = np.random.uniform(0.2, 0.7, self.num_competitors+1)
             assert len(self.ctrs) == self.num_competitors+1, "Number of CTRs must match number of bidders"
 
         self.T_bidding = np.sum(self.auctions_per_day)
@@ -67,14 +65,14 @@ class Requirement1:
         # learning rate from theory
         eta = 1 / np.sqrt(self.T_bidding)
 
-        my_ctr = 0.7
+        my_ctr = self.ctr
         self.ctrs[0] = my_ctr
-        my_valuation = 0.8
+        my_valuation = self.valuation
 
-        other_bids = lambda n: np.random.beta(40, 27, n)
-        # with alpha=40 and beta=27 the distribution is centered around 0.6
+        other_bids = lambda n: np.random.beta(14.4, 9.6, n) * max_bid
+        # choose alpha and beta based on the mean and standard deviation of the competitors bids
+        
         bidding_envir = envi.StochasticBiddingCompetitors(other_bids, num_competitors)
-
         auction = au.SecondPriceAuction(self.ctrs)
 
         regret_per_trial_pricing = []
@@ -152,29 +150,15 @@ class Requirement1:
 
                 ### Pricing phase: updating the price at the end of the day
                 # get bandit feedback from environment
-
-                if n_clicks == 0:
-                    # this is to de-bias the GPUCB agent from the bids of the day
-                    n_clicks = 1
-                    # otherwise not winning any auction would result in 0 reward regardless of the price
-                # n_clicks = 100
-                """ if n_clicks > 0:
-                    d_t, r_t = pricing_envir.round(price_t, n_clicks)
-                    max_reward = (max_price - item_cost) * n_clicks
-                    min_reward = (min_price - item_cost) * n_clicks
-
-                    # update agent with profit normalized to [0,1]
-                    pricing_agent.update(normalize_zero_one(r_t, min_reward, max_reward))
-                else:
-                    d_t, r_t = 0, 0
-                    # no pricing agent update if no clicks """
-
+                
+                # n_clicks = 50
                 d_t, r_t = pricing_envir.round(price_t, n_clicks)
                 max_reward = (max_price - item_cost) * n_clicks
                 min_reward = (min_price - item_cost) * n_clicks
 
                 # update agent with profit normalized to [0,1]
-                pricing_agent.update(normalize_zero_one(r_t, min_reward, max_reward))
+                # pricing_agent.update(normalize_zero_one(r_t, min_reward, max_reward))
+                pricing_agent.update(r_t/n_clicks if n_clicks > 0 else 0)
                 
                 # update sales and profit on the played price
                 day_sales = d_t
@@ -255,23 +239,25 @@ class Requirement1:
         # learning rate from theory
         eta = 1/np.sqrt(n_auctions)
 
-        my_valuation = 0.8
-
-        # WLOG we assume bids to be in [0,1]
-        available_bids = np.linspace(0, 1, K)
-        other_bids = lambda n: np.random.beta(40, 27, n)
-        # with alpha=40 and beta=27 the distribution is centered around 0.6
-        my_ctr = 0.75
+        my_valuation = self.valuation
+        
+        min_bid = 0
+        max_bid = 1
+        available_bids = np.linspace(min_bid, max_bid, K)
+        other_bids = lambda n: np.random.beta(14.4, 9.6, n) * max_bid
+        # choose alpha and beta based on the mean and standard deviation of the competitors bids
+        my_ctr = self.ctr
         self.ctrs[0] = my_ctr
         other_ctrs = self.ctrs[1:]
+
+        envir = envi.StochasticBiddingCompetitors(other_bids, num_competitors)
+        auction = au.SecondPriceAuction(self.ctrs)
 
         regret_per_trial = []
         bids_per_trial = []
         for seed in range(self.n_iters):
             np.random.seed(seed)
 
-            envir = envi.StochasticBiddingCompetitors(other_bids, num_competitors)
-            auction = au.SecondPriceAuction(self.ctrs)
             if self.bidder_type == 'UCB':
                 agent = ag.UCB1BiddingAgent(my_budget, available_bids, n_auctions)
             elif self.bidder_type == 'pacing':
@@ -357,7 +343,7 @@ class Requirement1:
     ''' ONLY PRICING '''
     def pricing(self):
         
-        item_cost = 0.1
+        item_cost = 0.2
         min_price = 0 # anything lower than this would be a loss
         max_price = 1 # price at which the conversion probability is 0
         n_customers = 100
@@ -394,7 +380,7 @@ class Requirement1:
         for seed in range(n_trials):
             np.random.seed(seed)
 
-            agent = ag.GPUCBAgent(T = self.T_pricing, K = K)
+            agent = ag.GPUCBAgent(T = self.T_pricing, discretization = K)
             envir = envi.StochasticPricingEnvironment(conversion_probability, item_cost)
 
             my_prices = np.array([])
@@ -414,7 +400,8 @@ class Requirement1:
                 # reward = total profit
 
                 # update agent with profit normalized to [0,1]
-                agent.update(normalize_zero_one(r_t, min_reward, max_reward))
+                # agent.update(normalize_zero_one(r_t, min_reward, max_reward))
+                agent.update(r_t/n_customers)
 
                 ''' LOGGING '''
                 my_prices = np.append(my_prices, price_t)
@@ -458,15 +445,17 @@ class Requirement1:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--num_days", dest="num_days", type=int, default=120)
-    parser.add_argument("--auctions_per_day", dest="auctions_per_day", type=int, default=90)
-    parser.add_argument("--n_iters", dest="n_iters", type = int, default=10)
+    parser.add_argument("--num_days", dest="num_days", type=int, default=365)
+    parser.add_argument("--auctions_per_day", dest="auctions_per_day", type=int, default=10)
+    parser.add_argument("--n_iters", dest="n_iters", type = int, default=5)
     parser.add_argument("--num_competitors", dest="num_competitors", type=int, default=10)
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
     parser.add_argument("--seed", dest="seed", type=int, default=1)
     parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='main')
     parser.add_argument("--bidder_type", dest="bidder_type", type=str, choices=['UCB', 'pacing'], default='pacing')
-    parser.add_argument("--budget", dest="budget", type=int, default=200)
+    parser.add_argument("--budget", dest="budget", type=int, default=100)
+    parser.add_argument("--valuation", dest="valuation", type=float, default=0.8)
+    parser.add_argument("--ctr", dest="ctr", type=float, default=0.5)
 
     #for pricing only
     parser.add_argument("--num_buyers", dest="num_buyers", type = int, default = 100)

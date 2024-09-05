@@ -43,7 +43,7 @@ def get_clairvoyant_truthful_stochastic(budget, my_valuation, m_t, n_auctions):
     clairvoyant_payments = np.zeros(n_auctions)
     c = 0 # total money spent
     i = 0 # index over the auctions
-    while c <= budget-1 and i < n_auctions:
+    while c <= budget-1 and i < n_auctions and utility[sorted_round_utility[i]] > 0:
         clairvoyant_bids[sorted_round_utility[i]] = 1 # bid 1 in the remaining most profitable auction
         # recall that since this is a second-price auction what I pay doesn't depend on my bid (but determines if I win)
         # notice that since the competitors' bids are fixed < 1 the clairvoyant can just bid 1 to the auctions he wants to win and 0 to the rest
