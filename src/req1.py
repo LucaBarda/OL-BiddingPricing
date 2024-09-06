@@ -31,7 +31,7 @@ class Requirement1:
     def main(self):
         
         ''' PRICING SETUP '''
-        item_cost = 0.2
+        item_cost = self.item_cost
         min_price = 0
         max_price = 1
 
@@ -45,7 +45,7 @@ class Requirement1:
         discr_prices = np.linspace(min_price, max_price, K_pricing)
         
         # parametric conversion probability
-        theta = 1
+        theta = self.theta
         conversion_probability = lambda p: (1 - p/max_price) ** theta
         # such that the probability of conversion is 1 at price = 0 and 0 at price = max_price
         pricing_envir = envi.StochasticPricingEnvironment(conversion_probability, item_cost)
@@ -347,7 +347,7 @@ class Requirement1:
     ''' ONLY PRICING '''
     def pricing(self):
         
-        item_cost = 0.2
+        item_cost = self.item_cost
         min_price = 0 # anything lower than this would be a loss
         max_price = 1 # price at which the conversion probability is 0
         n_customers = 100
@@ -356,7 +356,7 @@ class Requirement1:
 
         discr_prices = np.linspace(min_price, max_price, K)
 
-        theta = 1
+        theta = self.theta
         conversion_probability = lambda p: (1 - p/max_price)**theta
         # such that the probability of conversion is 1 at price = 0 and 0 at price = max_price
 
@@ -447,14 +447,16 @@ if __name__ == '__main__':
     parser.add_argument("--num_competitors", dest="num_competitors", type=int, default=10)
     parser.add_argument("--ctrs", dest = "ctrs", type=list, default = None)
     parser.add_argument("--seed", dest="seed", type=int, default=1)
-    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='pricing')
+    parser.add_argument("--run_type", dest="run_type", type=str, choices=['main', 'bidding', 'pricing'], default='main')
     parser.add_argument("--bidder_type", dest="bidder_type", type=str, choices=['UCB', 'pacing'], default='pacing')
     parser.add_argument("--budget", dest="budget", type=int, default=100)
     parser.add_argument("--valuation", dest="valuation", type=float, default=0.8)
     parser.add_argument("--ctr", dest="ctr", type=float, default=0.5)
+    parser.add_argument("--theta", dest="theta", type=float, default=1)
 
     #for pricing only
     parser.add_argument("--num_buyers", dest="num_buyers", type = int, default = 100)
+    parser.add_argument("--item_cost", dest="item_cost", type = int, default = 0.2)
 
     args = parser.parse_args()    
 
