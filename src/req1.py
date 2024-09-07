@@ -430,7 +430,7 @@ class Requirement1:
         plt.legend()
         plt.show()
 
-        # plot_agent_pricing(my_prices, my_sales, my_rewards)
+        plot_agent_pricing(my_prices, my_sales, my_rewards)
 
         # plot_regret(my_rewards, expected_clairvoyant_rewards)
 

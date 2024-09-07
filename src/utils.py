@@ -203,7 +203,7 @@ def plot_agent_pricing(agent_prices, agent_sales, agent_rewards):
     plt.title('Chosen Prices')
     plt.show()
 
-    plt.title('Agent Cumulative Sales')
+    '''plt.title('Agent Cumulative Sales')
     plt.plot(np.cumsum(agent_sales))
     plt.xlabel('$t$')
     plt.ylabel('$\sum s_t$')
@@ -213,7 +213,7 @@ def plot_agent_pricing(agent_prices, agent_sales, agent_rewards):
     plt.plot(np.cumsum(agent_rewards))
     plt.xlabel('$t$')
     plt.ylabel('$\sum r_t$')
-    plt.show()
+    plt.show()'''
 
 def plot_demand_curve(prices, conversion_probability, n_customers):
     expected_demand_curve = n_customers * conversion_probability(prices)
