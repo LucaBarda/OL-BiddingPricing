@@ -346,6 +346,9 @@ class Requirement:
         plt.legend()
         plt.savefig('bids_in_time.png')
 
+
+        plot_agent_bidding(self.budget, my_bids, my_utilities, my_payments)
+
     def pricing(self):
         
         num_buyers = self.num_buyers
@@ -418,9 +421,6 @@ class Requirement:
 
             ''' PRICING CLAIRVOYANT '''
             expected_clairvoyant_rewards, _ = get_clairvoyant_pricing_adversarial(my_prices, my_rewards, discr_prices, T, envir, num_buyers)
-            print(f"My prices: {my_prices}")
-            print(f"My rewards: {my_rewards}")
-            print(f"Expected clairvoyant rewards: {expected_clairvoyant_rewards}")
             regret_per_trial.append(np.cumsum(expected_clairvoyant_rewards - my_rewards))
             
         regret_per_trial = np.array(regret_per_trial)

@@ -259,8 +259,7 @@ class Requirement:
         # plt.savefig("distribution_percentage_wins.png")        
         plt.show()
 
-    def stochastic(self):
-        pass
+
 
     def adversarial(self):
         num_participants = self.num_participants
@@ -346,7 +345,7 @@ class Requirement:
                 bid_t = np.zeros(3)
                 bid_t_t = agent_truthful.bid()
                 bid_t_nont = agent_non_truthful.bid()
-                bid_t_ucb = agent_ucb.bid()   #UCB not considered since BROKEN FOR NOW 
+                bid_t_ucb = agent_ucb.bid()   
                 bid_t[0] = available_bids[np.abs(available_bids - bid_t_t).argmin()]
                 # bid_t[0] = bid_t_t
                 bid_t[1] = bid_t_nont
@@ -455,7 +454,7 @@ class Requirement:
             ''' ADVERSARIAL CLAIRVOYANT '''
             clairvoyant_utilities = np.zeros((3, self.T_bidding))
             for i in range(3):
-                except_other_agents = [j for j in range(3) if j != i]
+                except_other_agents = [j for j in range(3) if j != i] #we don't consider in the regret the contribution of the other 2 main agents 
                 _, clairvoyant_utilities[i], _ = get_clairvoyant_non_truthful_adversarial(self.budget, self.valuation, self.T_bidding, available_bids, all_bids, auction_agent=auction, idx_agent=i, exclude_bidders=except_other_agents)
 
                 clairvoyant_utilities_per_iteration[i] += clairvoyant_utilities[i]
@@ -562,7 +561,7 @@ if __name__ == '__main__':
     parser.add_argument("--ctrs", dest = "ctrs", type=parse_list, default = None)
     parser.add_argument("--eta", dest="eta", type=float, default=None) #learning rate for truthful bidders (default is 1/sqrt(T), one might decrease it to improve competition)
     parser.add_argument("--seed", dest="seed", type=int, default=1)
-    parser.add_argument("--scenario", dest="scenario", type=str, choices=['solo', 'stochastic', 'adversarial'], default='solo')
+    parser.add_argument("--scenario", dest="scenario", type=str, choices=['solo', 'adversarial'], default='solo')
 
     args = parser.parse_args()    
 
@@ -570,8 +569,6 @@ if __name__ == '__main__':
 
     if args.scenario == 'solo':
         req.main()
-    elif args.scenario == 'stochastic':
-        req.stochastic()
     elif args.scenario == 'adversarial':
         req.adversarial()
     else:
