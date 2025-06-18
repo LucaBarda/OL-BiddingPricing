@@ -33,7 +33,8 @@ OL-BiddingPricing/
 └── README.md          # Project overview and documentation
 ```
 
-## Documentation
 `doc/task.pdf` — Detailed project description and objectives.
 
 `doc/final_report.pdf` — In-depth report including methodology, algorithms, results, and conclusions.
+
+`src/run.ipynb` — Run and test code with different parameters
