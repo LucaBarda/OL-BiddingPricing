@@ -4,7 +4,7 @@
 
 **OL-BiddingPricing** addresses the problem of **online bidding and pricing** in the context of purchasing campaigns. The main objective is to design and implement strategies that dynamically adjust bids and prices to maximize performance under uncertainty and budget constraints. This involves making sequential decisions with incomplete information about future opportunities.
 
-The project is part of the Online Learning Applications (OLA) course and aims to explore **online algorithms** and **learning-based approaches** to optimize bidding policies in real-time scenarios.
+The project is part of the Online Learning Applications (OLA) course @ Politecnico di Milano and aims to explore **online algorithms** and **learning-based approaches** to optimize bidding policies in real-time scenarios.
 
 ## 🎯 Objectives
 
@@ -32,3 +32,8 @@ OL-BiddingPricing/
 ├── requirements.txt   # Python dependencies
 └── README.md          # Project overview and documentation
 ```
+
+## Documentation
+`doc/task.pdf` — Detailed project description and objectives.
+
+`doc/final_report.pdf` — In-depth report including methodology, algorithms, results, and conclusions.
